@@ -17,6 +17,7 @@ spec:
       project: default
       source:
         repoURL: https://github.com/jrang188/homelab-k8s
+        path: "{{path}}"
         targetRevision: HEAD
         chart: "{{path.basename}}" # Each directory matches a Helm chart name
         helm:
