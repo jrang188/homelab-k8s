@@ -6,12 +6,15 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jrang188/homelab-k8s 
-    targetRevision: HEAD
-    path: argocd
+    repoURL: https://argoproj.github.io/argo-helm # Helm repository for ArgoCD charts
+    chart: argo-cd # Name of the chart
+    targetRevision: 7.7.7 # Specific chart version
+    helm:
+      valueFiles: # Optional: Custom values file
+        - values.yaml
   destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
+    server: https://kubernetes.default.svc # In-cluster Kubernetes API
+    namespace: argocd # Namespace for ArgoCD deployment
   syncPolicy:
     automated:
       selfHeal: true
