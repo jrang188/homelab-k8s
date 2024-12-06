@@ -1,0 +1,7 @@
+apiVersion: v2
+name: argocd
+version: 1.0.0
+dependencies:
+  - name: longhorn
+    version: 1.7.2
+    repository: https://charts.longhorn.io
