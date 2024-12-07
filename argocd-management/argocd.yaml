@@ -6,10 +6,10 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jrang188/homelab-k8s 
+    repoURL: https://github.com/jrang188/homelab-k8s
     targetRevision: HEAD
     path: argocd
-    helm: 
+    helm:
       valueFiles:
         - values.yaml
   destination:

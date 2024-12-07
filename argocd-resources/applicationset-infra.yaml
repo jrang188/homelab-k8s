@@ -29,5 +29,6 @@ spec:
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
-  orphanedResources:
-    enabled: true
+  syncPolicy:
+    applicationsSync: create-only
+    preserveResourcesOnDeletion: true
