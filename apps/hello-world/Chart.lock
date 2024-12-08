@@ -1,0 +1,6 @@
+dependencies:
+- name: hello-world
+  repository: https://helm.github.io/examples
+  version: 0.1.0
+digest: sha256:7ff831acf47bc83d9aa0b7115cc9527d4da6c782064736f0c0089a9093fa22fc
+generated: "2024-12-07T19:33:56.510362002-08:00"
