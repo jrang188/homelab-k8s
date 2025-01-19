@@ -7,7 +7,7 @@ spec:
   generators:
     - git:
         repoURL: https://github.com/jrang188/homelab-k8s
-        revision: HEAD
+        revision: docker-desktop
         directories:
           - path: "apps/*"
   template:

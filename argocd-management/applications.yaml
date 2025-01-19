@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jrang188/homelab-k8s
-    targetRevision: HEAD
+    targetRevision: docker-desktop
     path: argocd-resources
   destination:
     server: https://kubernetes.default.svc
