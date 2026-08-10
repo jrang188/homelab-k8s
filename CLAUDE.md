@@ -45,6 +45,13 @@ helm lint <dir>
 
 The ApplicationSets and root Applications hardcode `repoURL: https://github.com/jrang188/homelab-k8s`, `targetRevision: HEAD`. Any restructuring of top-level directories (`apps/`, `infra/`, `argocd-resources/`, `argocd-management/`, `argocd/`) needs a matching update to these hardcoded paths, since ArgoCD won't infer them.
 
+## External infrastructure repositories
+
+This GitOps repository depends on two external infrastructure repositories:
+
+- **Hetzner Control Plane**: https://github.com/jrang188/opentofu-infra — OpenTofu code for provisioning the k3s control plane on Hetzner Cloud
+- **Home Agent Node**: https://github.com/jrang188/homelab-nix — NixOS/nix-darwin configuration for the k3s home agent node
+
 ## Agent skills
 
 ### Issue tracker
