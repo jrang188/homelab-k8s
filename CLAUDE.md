@@ -58,6 +58,10 @@ This GitOps repository depends on two external infrastructure repositories:
 
 GitHub Issues (`jrang188/homelab-k8s`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+Default five canonical roles, label strings equal to their names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
 Single-context — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

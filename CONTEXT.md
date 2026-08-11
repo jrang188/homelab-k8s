@@ -9,14 +9,22 @@ One of 3 Hetzner CX23 cloud VPS instances (`../../devops/opentofu-infra`, `kube-
 _Avoid_: "the cluster" (the home node is also part of it)
 
 **Home node**:
-`k3s-agent-hml` — the physical mini PC (4-core Haswell i5-4570T, 16GB DDR3 RAM, ~100GB+ SSD), joined as a k3s agent over Tailscale (`../../devops/homelab-nix`). Tainted `node-role.kubernetes.io/home=true:NoSchedule` — only workloads that explicitly tolerate it get scheduled here. No unattended-upgrade churn (its own drain-hook mechanism, not `kured`). The only node with real dedicated local disk.
+`k3s-agent-hml` — the physical mini PC (4-core Haswell i5-4570T, 16GB DDR3 RAM, ~500GB SSD), joined as a k3s agent over Tailscale (`../../devops/homelab-nix`). Tainted `node-role.kubernetes.io/home=true:NoSchedule` — only workloads that explicitly tolerate it get scheduled here. No unattended-upgrade churn (its own drain-hook mechanism, not `kured`). The only node with real dedicated local disk.
 _Avoid_: "worker node" (control planes are also workers, see above)
 
 **Storage class**:
-Does not exist yet, on either the control-plane or home side, as of this writing — Hetzner CSI, Longhorn, and k3s's built-in local-path provisioner are all disabled. Any `apps/`/`infra/` workload that needs a PVC needs this provisioned first (a `local-path-provisioner` scoped to the home node is the natural fit, given it's the only node with disk meant for this).
+A `local-path-provisioner` scoped to the home node only (the only node with real dedicated disk — Hetzner CSI and Longhorn stay disabled on the control planes). General-purpose, not tied to a single workload: Hermes Agent's state PVC, the monitoring TSDB, and log storage all share it (see [ADR-0007](docs/adr/0007-broaden-home-node-storage-to-general-purpose.md)). Not yet built as of this writing.
+
+**Ingress path**:
+The L4/L7 chain that gets a request from the public internet to a Service: Klipper (k3s's built-in `ServiceLB`, turned on via kube-hetzner's `enable_klipper_metal_lb` flag — despite the name, this is *not* real MetalLB) binds `:80`/`:443` on each control plane's public IP and forwards to Traefik, which this repo owns via `infra/traefik` (not kube-hetzner's built-in install). A Floating IP gives this path one stable public address regardless of which node currently serves it. See [ADR-0004](docs/adr/0004-own-traefik-remove-metallb.md).
+_Avoid_: "MetalLB" (a real MetalLB install existed briefly as `infra/metallb`, targeting a home-LAN pool that never matched any node's actual network — removed, see ADR-0004)
+
+**Secrets bootstrap secret**:
+The one secret — a 1Password service-account token — that can't come from ESO itself, since ESO needs it to reach 1Password in the first place. Delivered as a `kubernetes_secret` Terraform resource in `../../devops/opentofu-infra`, outside ArgoCD's reconciliation loop, rather than through GitOps. Every other secret is managed by ESO's 1Password SDK provider afterward. See [ADR-0006](docs/adr/0006-secrets-bootstrap-via-terraform.md).
+_Avoid_: sealed-secrets (removed — this was its only remaining use case in this repo)
 
 **Hermes Agent**:
-An always-on daemon (single planned instance, not yet built — planning stage) running the NousResearch `hermes-agent` LLM coding-agent CLI. Deployed as a plain Kubernetes Deployment under `apps/hermes-agent` (mirroring the `apps/whoami` plain-manifest pattern, not a Helm chart — upstream has no official k8s deployment target to wrap), pinned to the **home node** only via taint toleration + `topology.kubernetes.io/zone=home` nodeSelector, using the **local-path-provisioner** (home-node-scoped, new `infra/` addition) for its state PVC, reachable remotely by Hermes Desktop via a dedicated **Tailscale operator**-exposed `Service` (new `infra/tailscale-operator`), rather than node-level Tailscale or public Traefik ingress. No off-node backup for now (deferred).
+An always-on daemon (single planned instance, not yet built — planning stage) running the NousResearch `hermes-agent` LLM coding-agent CLI. Deployed as a plain Kubernetes Deployment under `apps/hermes-agent` (plain manifests, not a Helm chart — see [ADR-0001](docs/adr/0001-plain-manifests-not-operator-or-chart.md) — upstream has no official k8s deployment target to wrap), pinned to the **home node** only via taint toleration + `topology.kubernetes.io/zone=home` nodeSelector, using the **local-path-provisioner** (home-node-scoped, general-purpose) for its state PVC, reachable remotely by Hermes Desktop via a dedicated **Tailscale operator**-exposed `Service` (new `infra/tailscale-operator`), rather than node-level Tailscale or public Traefik ingress. No off-node backup for now (deferred).
 _Avoid_: hermes-operator, hermes-agent-helm-chart (both evaluated and rejected — the operator's community image pin is stale/broken on containerd, the chart is abandonware)
 
 **Execution backend**:
