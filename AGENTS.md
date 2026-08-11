@@ -14,31 +14,30 @@ Bootstrap (applied manually, once, with `kubectl apply -f <file>`):
 
 Everything else is discovered automatically, no manual `kubectl apply` needed:
 - `argocd-resources/applicationset-infra.yaml` and `applicationset-apps.yaml` are ArgoCD `ApplicationSet`s. Each uses a git directory generator over `infra/*` and `apps/*` respectively, creating one ArgoCD `Application` per subdirectory. The Application name and destination namespace are both derived from the directory's basename (`{{path.basename}}`), so a new directory under `infra/` or `apps/` is picked up with no other wiring.
-- `infra/` — cluster infrastructure components (currently `metallb`, `sealed-secrets`, `traefik`).
-- `apps/` — workloads deployed to the cluster (currently `hello-world`, `whoami`).
+- `infra/` — cluster infrastructure components (currently `traefik`).
+- `apps/` — workloads deployed to the cluster (currently empty; `apps/hermes-agent` is planned — see `CONTEXT.md`).
 
 ApplicationSet sync policy is `applicationsSync: create-only` with `preserveResourcesOnDeletion: true` — ArgoCD creates new Applications for new directories but won't delete/prune an Application (or its resources) just because the directory disappeared; deletions must be handled by hand. Individual Applications have `syncPolicy.automated.selfHeal: true`.
 
 ## Helm chart pattern ("wrapper charts")
 
-Most `infra/*` and some `apps/*` directories are thin wrapper charts: a local `Chart.yaml` with a single `dependencies` entry pinning an upstream chart + repo, vendored into `charts/*.tgz`, with a local `values.yaml` overriding upstream defaults. e.g. `infra/metallb/Chart.yaml` depends on `metallb/metallb`, `argocd/Chart.yaml` depends on `argo-cd/argo-cd`.
+Most `infra/*` and some `apps/*` directories are thin wrapper charts: a local `Chart.yaml` with a single `dependencies` entry pinning an upstream chart + repo, vendored into `charts/*.tgz`, with a local `values.yaml` overriding upstream defaults. e.g. `infra/traefik/Chart.yaml` depends on `traefik/traefik`, `argocd/Chart.yaml` depends on `argo-cd/argo-cd`.
 
 - `charts/*.tgz` and `Chart.lock` vendor the pinned dependency — regenerate after editing `Chart.yaml`'s dependency version with `helm dependency update <dir>`.
 - `*.tgz` files, `.idea`, `.vscode`, and `.DS_Store` are gitignored (see `.gitignore`), so vendored chart tarballs are a local/regenerable artifact, not committed — don't assume a directory lacking `charts/*.tgz` on disk is broken; run `helm dependency update` before templating it.
-- Chart-local Kubernetes resources (e.g. MetalLB's `IPAddressPool`/`L2Advertisement`) live under `<dir>/templates/`.
-- Not every directory is a Helm chart: `apps/whoami` is plain Kubernetes manifests applied directly by ArgoCD (Deployment/Service/Ingress, no `Chart.yaml`).
+- Chart-local Kubernetes resources live under `<dir>/templates/`.
+- Not every directory is a Helm chart: plain Kubernetes manifests are applied directly by ArgoCD (Deployment/Service/Ingress, no `Chart.yaml` — see `docs/adr/0001-plain-manifests-not-operator-or-chart.md`).
 
 To render/validate a chart locally before committing:
 ```
-helm dependency update <dir>     # e.g. infra/metallb
+helm dependency update <dir>     # e.g. infra/traefik
 helm template <dir> -f <dir>/values.yaml
 helm lint <dir>
 ```
 
 ## Networking conventions
 
-- MetalLB (`infra/metallb`) hands out LoadBalancer IPs from `192.168.1.192/26` (`infra/metallb/templates/ipaddresspool.yaml`).
-- Traefik (`infra/traefik`) is the ingress controller; app-level routing is expressed as plain `Ingress` resources (see `apps/whoami/03-whoami-ingress.yaml`).
+- Traefik (`infra/traefik`) is the ingress controller; app-level routing is expressed as plain `Ingress` resources. LoadBalancer Services on the public-facing control planes are satisfied by Klipper (k3s's built-in ServiceLB), not MetalLB.
 - ArgoCD itself is deployed via the `argocd` wrapper chart at repo root, not under `infra/` — it's bootstrapped before the ApplicationSets exist to discover anything.
 
 ## Repo identity

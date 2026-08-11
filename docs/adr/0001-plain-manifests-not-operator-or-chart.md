@@ -10,7 +10,7 @@ Evaluated two community projects for deploying NousResearch's `hermes-agent` to 
 
 ## Decision
 
-Hand-write plain `Deployment`/`PVC`/`Service` manifests under `apps/hermes-agent`, mirroring the `apps/whoami` plain-manifest pattern (no `Chart.yaml`), tracking the upstream Docker image directly at a current, explicitly-chosen tag rather than trusting either project's example.
+Hand-write plain `Deployment`/`PVC`/`Service` manifests under `apps/hermes-agent` (no `Chart.yaml`), tracking the upstream Docker image directly at a current, explicitly-chosen tag rather than trusting either project's example.
 
 ## Consequences
 
