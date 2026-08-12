@@ -1,0 +1,18 @@
+traefik:
+  deployment:
+    replicas: 3
+
+  log:
+    level: DEBUG
+
+  service:
+    spec:
+      type: LoadBalancer
+
+  ingressClass:
+    enabled: true
+    isDefaultClass: true
+
+  providers:
+    kubernetesGateway:
+      enabled: true

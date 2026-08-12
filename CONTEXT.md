@@ -23,6 +23,14 @@ _Avoid_: "MetalLB" (a real MetalLB install existed briefly as `infra/metallb`, t
 The one secret — a 1Password service-account token — that can't come from ESO itself, since ESO needs it to reach 1Password in the first place. Delivered as a `kubernetes_secret` Terraform resource in `../../devops/opentofu-infra`, outside ArgoCD's reconciliation loop, rather than through GitOps. Every other secret is managed by ESO's 1Password SDK provider afterward. See [ADR-0006](docs/adr/0006-secrets-bootstrap-via-terraform.md).
 _Avoid_: sealed-secrets (removed — this was its only remaining use case in this repo)
 
+**Bootstrap secret contract** (cross-repo interface):
+- Name: `onepassword-token`
+- Namespace: `external-secrets`
+- Key: `token`
+- Created by: `kubernetes_secret` Terraform resource in `opentofu-infra`
+- Consumed by: `ClusterSecretStore` `onepassword` (via `serviceAccountSecretRef`)
+- Any future consumer (cert-manager, external-dns) that needs ESO-fetched secrets must reference `ClusterSecretStore/onepassword` — it is cluster-scoped and namespace-agnostic.
+
 **Hermes Agent**:
 An always-on daemon (single planned instance, not yet built — planning stage) running the NousResearch `hermes-agent` LLM coding-agent CLI. Deployed as a plain Kubernetes Deployment under `apps/hermes-agent` (plain manifests, not a Helm chart — see [ADR-0001](docs/adr/0001-plain-manifests-not-operator-or-chart.md) — upstream has no official k8s deployment target to wrap), pinned to the **home node** only via taint toleration + `topology.kubernetes.io/zone=home` nodeSelector, using the **local-path-provisioner** (home-node-scoped, general-purpose) for its state PVC, reachable remotely by Hermes Desktop via a dedicated **Tailscale operator**-exposed `Service` (new `infra/tailscale-operator`), rather than node-level Tailscale or public Traefik ingress. No off-node backup for now (deferred).
 _Avoid_: hermes-operator, hermes-agent-helm-chart (both evaluated and rejected — the operator's community image pin is stale/broken on containerd, the chart is abandonware)
