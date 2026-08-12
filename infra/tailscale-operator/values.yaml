@@ -1,0 +1,11 @@
+## Tailscale Kubernetes operator configuration
+## Ref: https://tailscale.com/kb/1236/kubernetes-operator
+##
+## Only overrides from the tailscale-operator chart's own defaults belong here.
+## Everything else falls through to the chart's built-in values.
+##
+## OAuth client credentials are intentionally NOT set here (oauth.clientId /
+## oauth.clientSecret) to avoid committing secrets to git. Create a Secret
+## named `operator-oauth` in this chart's namespace out-of-band (containing
+## client_id / client_secret keys) before the operator will authenticate to
+## the tailnet.
