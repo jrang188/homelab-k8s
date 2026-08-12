@@ -1,0 +1,25 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc
+# Scoped to the home node only: any pod requesting runtimeClassName: gvisor
+# will only be schedulable onto a node labelled topology.kubernetes.io/zone=home
+# that has the home-node NoSchedule taint tolerated. This matches Hermes
+# Agent's home-node pinning (ADR-0002) and matches where the runsc binary
+# will actually be installed (ADR-0003).
+#
+# NOTE: this RuntimeClass is non-functional until the companion homelab-nix
+# change lands — i.e. until the runsc binary and its containerd shim are
+# installed on the home node and registered as the handler "runsc". The
+# Kubernetes-side admission control below will happily accept pods asking
+# for runtimeClassName: gvisor, but the kubelet on the home node will fail
+# to start them until runsc is registered there.
+scheduling:
+  nodeSelector:
+    topology.kubernetes.io/zone: home
+  tolerations:
+    - key: node-role.kubernetes.io/home
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
