@@ -25,7 +25,7 @@ _Avoid_: sealed-secrets (removed — this was its only remaining use case in thi
 
 **Bootstrap secret contract** (cross-repo interface):
 - Name: `onepassword-token`
-- Namespace: `external-secrets`
+- Namespace: `eso`
 - Key: `token`
 - Created by: `kubernetes_secret` Terraform resource in `opentofu-infra`
 - Consumed by: `ClusterSecretStore` `onepassword` (via `serviceAccountSecretRef`)
