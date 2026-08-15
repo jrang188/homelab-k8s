@@ -14,26 +14,28 @@ The `RuntimeClass` is scoped to the home node via the `scheduling` field:
   matching the home node's NoSchedule taint so the kubelet will consider the
   pod for scheduling there.
 
+Both fields are required together: `nodeSelector` alone would leave a
+requesting pod permanently unschedulable, since the only zone-matching node
+also repels non-tolerating pods via its own `NoSchedule` taint. The
+`tolerations` block is what actually admits the pod past that taint; the
+`nodeSelector` is what keeps it from landing anywhere else.
+
 This matches Hermes Agent's home-node pinning (ADR-0002). The home node is
 the only one where `runsc` will actually be installed, so restricting at
 admission is the right place to fail.
 
-## Non-functional until `homelab-nix` lands
+## Companion `homelab-nix` change: landed
 
-This Kubernetes-side change is **not enough on its own**. The `runsc` binary
-and its containerd shim must also be installed on the home node, and the
-home node's containerd must register `runsc` as a runtime handler under the
-name `runsc`. That install lives in the sibling
-[`homelab-nix`](https://github.com/jrang188/homelab-nix) repo (NixOS-side
-config), and is tracked as a separate ticket there.
+This Kubernetes-side `RuntimeClass` is only half of ADR-0003's design — the
+other half is installing the `runsc` binary and its containerd shim on the
+home node, and registering `runsc` as a containerd runtime handler there.
+That install lives in the sibling
+[`homelab-nix`](https://github.com/jrang188/homelab-nix) repo and landed
+2026-08-15 (`modules/gvisor.nix`, enabled on `hosts/k3s-agent-hml`).
 
-Until that companion change lands:
-
-- This `RuntimeClass` will exist and be accepted by the API server.
-- A pod requesting `runtimeClassName: gvisor` will be admitted, scheduled,
-  and started on the home node.
-- The kubelet on the home node will fail to actually launch the container,
-  because no runtime handler named `runsc` is registered.
+With both halves in place, once this `RuntimeClass` is merged and synced by
+ArgoCD, a pod requesting `runtimeClassName: gvisor` should schedule onto the
+home node and actually start there — not just be admitted.
 
 See [ADR-0003](../../../docs/adr/0003-local-execution-with-gvisor-not-docker.md)
 for the broader rationale (defense-in-depth against accidentally-executed
