@@ -167,6 +167,11 @@ data:
     #!/bin/sh
     set -eu
     rm -rf "$VOL_DIR"
+  # helperPod.yaml carries no home-node toleration/nodeSelector: the
+  # provisioner sets spec.nodeName directly on these short-lived pods
+  # (bypassing the scheduler entirely), so scheduler-level affinity has no
+  # effect on them anyway. They already only ever run on the home node,
+  # since that's the only node local-path volumes exist on.
   helperPod.yaml: |-
     apiVersion: v1
     kind: Pod
