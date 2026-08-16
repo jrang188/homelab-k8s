@@ -1,0 +1,22 @@
+external-dns:
+  provider:
+    name: cloudflare
+
+  env:
+    - name: CF_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: cloudflare-api-token
+          key: api-token
+
+  txtOwnerId: homelab-k8s
+
+  # Klipper reports each control plane's own public IP as the Service's
+  # LoadBalancer status, not the stable Floating IP (see ADR-0004/ADR-0005) —
+  # so records must be pinned to a fixed target instead of following Service
+  # status. Replace with the actual Floating IP once provisioned in
+  # opentofu-infra — see docs/runbooks/cert-manager-external-dns.md.
+  # Intentionally not a placeholder IP: leaving this sentinel unset fails
+  # loudly rather than silently misrouting DNS.
+  extraArgs:
+    - --default-targets=REPLACE_WITH_FLOATING_IP
