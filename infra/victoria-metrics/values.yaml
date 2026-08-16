@@ -82,6 +82,30 @@ victoria-metrics-k8s-stack:
   # logs.
   vlagent:
     enabled: true
+    spec:
+      # /var/log/containers/*.log symlinks to root-owned (0750) files
+      # under /var/log/pods/*; the vlagent image runs as a non-root UID
+      # by default, hence runAsUser. On the three Hetzner control planes
+      # (k3s runs with --selinux=true on openSUSE Leap Micro; confirmed
+      # via `k3s.io/node-args` on the Node object) runAsUser alone still
+      # gets "permission denied" — SELinux confines pods to container_t,
+      # which can't read /var/log/pods/** regardless of DAC/capabilities.
+      # spc_t (super-privileged container type, the standard SELinux
+      # type for host-log-reading DaemonSets) is what actually lifts it;
+      # verified live with a throwaway debug pod before landing this.
+      # The home node (NixOS, no SELinux) doesn't need it but is
+      # unaffected by setting it either way.
+      securityContext:
+        runAsUser: 0
+        seLinuxOptions:
+          type: spc_t
+      # No toleration means the DaemonSet controller skips the home node
+      # entirely (its NoSchedule taint repels untolerated pods regardless
+      # of nodeSelector) — same blanket toleration node-exporter uses so
+      # every node, including home, actually gets a collector.
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
 
   # k3s runs etcd, the scheduler, and the controller-manager in-process
   # inside the single k3s server binary, not as separate kubeadm-style
