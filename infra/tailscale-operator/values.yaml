@@ -1,0 +1,13 @@
+## Tailscale Kubernetes operator configuration
+## Ref: https://tailscale.com/kb/1236/kubernetes-operator
+##
+## Only overrides from the tailscale-operator chart's own defaults belong here.
+## Everything else falls through to the chart's built-in values.
+##
+## OAuth client credentials are intentionally NOT set here (oauth.clientId /
+## oauth.clientSecret) to avoid committing secrets to git. The chart falls
+## back to expecting a precreated Secret named `operator-oauth` (with
+## client_id / client_secret keys) in the release namespace when both are
+## unset — that Secret is provisioned by the ExternalSecret in
+## templates/external-secret.yaml, sourced from ESO's `onepassword`
+## ClusterSecretStore, per CONTEXT.md's secrets convention.
