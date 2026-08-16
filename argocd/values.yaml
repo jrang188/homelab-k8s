@@ -9,3 +9,16 @@ argo-cd:
     service:
       # Exposed via Klipper (k3s ServiceLB) NodePort rather than an Ingress.
       type: NodePort
+
+  repoServer:
+    # Upstream default is 1s for both probes, which repo-server routinely
+    # misses on these shared-vCPU Hetzner control planes under any brief CPU
+    # contention, sending it into a permanent crash loop (kubelet kills it on
+    # every missed liveness check before it can finish starting up). Wider
+    # timeouts and more tolerance give it room to actually respond.
+    livenessProbe:
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readinessProbe:
+      timeoutSeconds: 10
+      failureThreshold: 5
