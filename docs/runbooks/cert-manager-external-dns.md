@@ -20,24 +20,27 @@ Prerequisite: `infra/eso` is already synced and healthy (issue #5) — the
 2. Add a field named `api-token` with the token value from step 1.
 3. Both charts' `ExternalSecret`s pull this same item/field.
 
-## 3. Provision the Floating IP
+## 3. Floating IP — done
 
-1. In `opentofu-infra`, add/apply the Hetzner Floating IP resource per
-   [ADR-0005](../adr/0005-public-exposure-via-cloudflare-and-floating-ip.md)
-   (small recurring cost, ~€1-2/mo).
-2. Route it to the active ingress path at the Hetzner network level.
-3. Note the resulting IPv4 address.
+Already provisioned in `opentofu-infra` (`hcloud_floating_ip.control_planes["0-0-control-plane"]`,
+assigned to node 0): `49.12.118.244`. Already filled into
+`infra/external-dns/values.yaml`'s `--default-targets`, so nothing to do
+here unless the IP changes.
 
-## 4. Fill in the two operator-supplied values
+Outstanding: the `ingress_floating_ipv4` output added alongside this
+resource isn't in `opentofu-infra`'s state yet — run `tofu apply` there
+(should be a no-op on resources, just picks up the output) so `tofu output
+ingress_floating_ipv4` works for future reference instead of reading state
+directly.
+
+## 4. Fill in the remaining operator-supplied value
 
 In this repo:
 
-1. [`infra/external-dns/values.yaml`](../../infra/external-dns/values.yaml)
-   — replace `REPLACE_WITH_FLOATING_IP` with the address from step 3.
-2. [`infra/cert-manager/values.yaml`](../../infra/cert-manager/values.yaml)
+1. [`infra/cert-manager/values.yaml`](../../infra/cert-manager/values.yaml)
    — replace `REPLACE_WITH_ACME_EMAIL` with the email Let's Encrypt should
    send expiry/registration notices to.
-3. Commit and push to `main`.
+2. Commit and push to `main`.
 
 ## 5. Verify
 

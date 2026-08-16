@@ -14,9 +14,9 @@ external-dns:
   # Klipper reports each control plane's own public IP as the Service's
   # LoadBalancer status, not the stable Floating IP (see ADR-0004/ADR-0005) —
   # so records must be pinned to a fixed target instead of following Service
-  # status. Replace with the actual Floating IP once provisioned in
-  # opentofu-infra — see docs/runbooks/cert-manager-external-dns.md.
-  # Intentionally not a placeholder IP: leaving this sentinel unset fails
-  # loudly rather than silently misrouting DNS.
+  # status. This is opentofu-infra's control-plane floating IP
+  # (hcloud_floating_ip.control_planes["0-0-control-plane"], assigned to
+  # node 0 — see terraform/k3s/kube.tf and outputs.tf's
+  # ingress_floating_ipv4).
   extraArgs:
-    - --default-targets=REPLACE_WITH_FLOATING_IP
+    - --default-targets=49.12.118.244
