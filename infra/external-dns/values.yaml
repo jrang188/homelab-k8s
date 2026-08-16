@@ -1,0 +1,22 @@
+external-dns:
+  provider:
+    name: cloudflare
+
+  env:
+    - name: CF_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: cloudflare-api-token
+          key: api-token
+
+  txtOwnerId: homelab-k8s
+
+  # Klipper reports each control plane's own public IP as the Service's
+  # LoadBalancer status, not the stable Floating IP (see ADR-0004/ADR-0005) —
+  # so records must be pinned to a fixed target instead of following Service
+  # status. This is opentofu-infra's control-plane floating IP
+  # (hcloud_floating_ip.control_planes["0-0-control-plane"], assigned to
+  # node 0 — see terraform/k3s/kube.tf and outputs.tf's
+  # ingress_floating_ipv4).
+  extraArgs:
+    - --default-targets=49.12.118.244
