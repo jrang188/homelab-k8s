@@ -32,6 +32,15 @@ victoria-metrics-k8s-stack:
       # every manual sync — see
       # https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/#grafana-password-changes-constantly
       existingSecret: grafana-admin
+    # The VictoriaMetrics/VictoriaLogs datasources provisioned below
+    # (defaultDatasources.victoriametrics/.victorialogs) reference plugin
+    # types Grafana doesn't ship built-in — without these, Grafana logs
+    # "Could not find plugin definition for data source" and the
+    # datasources never appear in the UI at all. Requires the Grafana pod
+    # to have internet access at startup to fetch them.
+    plugins:
+      - victoriametrics-metrics-datasource
+      - victoriametrics-logs-datasource
     nodeSelector:
       topology.kubernetes.io/zone: home
     tolerations:
