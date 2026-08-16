@@ -5,11 +5,21 @@
 ## belong here. Everything else falls through to the chart's built-in values.
 
 victoria-metrics-k8s-stack:
-  # Cluster-wide collection: vmagent (a plain Deployment scraper) and the
-  # exporters (node-exporter DaemonSet, kube-state-metrics) carry no
-  # nodeSelector/toleration, so they are free to run on any node. Only the
-  # TSDB below is pinned to the home node, per ADR-0008.
-  vmagent: {}
+  # The control planes are small (~3GiB) Hetzner VMs already running tight
+  # on memory from k3s/etcd/apiserver/scheduler/controller-manager overhead
+  # alone. Pin the heavier stack components to the home node (which has
+  # ample headroom) to avoid piling more onto an already-constrained
+  # control plane. node-exporter stays unpinned/DaemonSet — it must run on
+  # every node to read that node's own /proc and /sys.
+  vmagent:
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
 
   grafana:
     admin:
@@ -22,6 +32,47 @@ victoria-metrics-k8s-stack:
       # every manual sync — see
       # https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/#grafana-password-changes-constantly
       existingSecret: grafana-admin
+    nodeSelector:
+      topology.kubernetes.io/zone: home
+    tolerations:
+      - key: node-role.kubernetes.io/home
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+
+  kube-state-metrics:
+    nodeSelector:
+      topology.kubernetes.io/zone: home
+    tolerations:
+      - key: node-role.kubernetes.io/home
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+
+  # VictoriaLogs, folded into this chart's own vlsingle CRD instead of the
+  # separate infra/victoria-logs release — enabling it also auto-wires a
+  # Grafana datasource (defaultDatasources.victorialogs), no manual
+  # datasource entry needed.
+  vlsingle:
+    enabled: true
+    spec:
+      # 7-day log retention (ADR-0008).
+      retentionPeriod: "7d"
+      storage:
+        storageClassName: local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+      # Home-node-only, same rationale as vmsingle below.
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
 
   # k3s runs etcd, the scheduler, and the controller-manager in-process
   # inside the single k3s server binary, not as separate kubeadm-style
