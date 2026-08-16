@@ -7,11 +7,26 @@ ExternalSecrets will stay in `SecretSyncedError` and DNS won't converge.
 Prerequisite: `infra/eso` is already synced and healthy (issue #5) — the
 `onepassword-token` bootstrap Secret exists in the `eso` namespace.
 
+## 0. Get a domain onto Cloudflare
+
+Both charts need a Cloudflare zone to write into — this has to exist before
+step 1.
+
+1. Own a domain (register one if needed).
+2. Cloudflare dashboard → **Add a Site**, enter the domain — this creates
+   the zone.
+3. Update the domain's nameservers at your registrar to the ones Cloudflare
+   gives you, so Cloudflare becomes authoritative. Allow time to propagate.
+
 ## 1. Create the Cloudflare API token
 
 1. In the Cloudflare dashboard: **My Profile → API Tokens → Create Token**.
-2. Scope: `Zone.DNS: Edit` on the zone(s) this cluster will manage.
-3. Copy the token value.
+2. Scope: `Zone.DNS: Edit` on the zone from step 0.
+3. Leave **Client IP Address Filtering** and **TTL** blank/default — the
+   token is called from pods that can land on any control plane (no fixed
+   egress IP to filter to), and there's no rotation automation in this repo
+   to handle an expiring token.
+4. Copy the token value.
 
 ## 2. Store it in 1Password
 
@@ -33,14 +48,14 @@ resource isn't in `opentofu-infra`'s state yet — run `tofu apply` there
 ingress_floating_ipv4` works for future reference instead of reading state
 directly.
 
-## 4. Fill in the remaining operator-supplied value
+## 4. ACME email — done
 
-In this repo:
-
-1. [`infra/cert-manager/values.yaml`](../../infra/cert-manager/values.yaml)
-   — replace `REPLACE_WITH_ACME_EMAIL` with the email Let's Encrypt should
-   send expiry/registration notices to.
-2. Commit and push to `main`.
+[`infra/cert-manager/values.yaml`](../../infra/cert-manager/values.yaml)'s
+`acmeEmail` is set to `justinang177@gmail.com` (matches this repo's git
+commit author / GitHub identity). Not a secret — Let's Encrypt doesn't
+publish it or embed it in issued certs — but it is PII, so treat changing
+it as a deliberate choice, not something to default carelessly in other
+repos.
 
 ## 5. Verify
 

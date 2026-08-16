@@ -1,7 +1,7 @@
 # ACME account email for Let's Encrypt (expiry/registration notices only,
 # not a secret). Must be set by the operator before first sync — see
 # docs/runbooks/cert-manager-external-dns.md.
-acmeEmail: "REPLACE_WITH_ACME_EMAIL"
+acmeEmail: "justinang177@gmail.com"
 
 cert-manager:
   crds:
