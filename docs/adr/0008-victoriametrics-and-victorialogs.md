@@ -15,3 +15,7 @@ Monitoring and logging were both undecided. The de facto default choices are `ku
 ## Considered options
 
 - `kube-prometheus-stack` + Loki (the more common/documented pairing) — rejected primarily for resource footprint on constrained nodes, secondarily to avoid running two unrelated log/metrics storage engines side by side.
+
+## Amendment (2026-08-16)
+
+VictoriaLogs is deployed as `victoria-metrics-k8s-stack`'s own `vlsingle` CRD (`infra/victoria-metrics`), not the separate `victoria-logs-single` chart originally specified in issue #11. Both charts come from the same upstream VictoriaMetrics Helm repo and were split into two `infra/*` directories only because that's how upstream ships them, not from a deliberate decoupling decision — folding `vlsingle` into the existing release avoids a second Helm release for a chart that already ships as an optional CRD in the first, and gets a Grafana datasource auto-wired instead of hand-maintained. `infra/victoria-logs` has been deleted; retention (7 days) and home-node storage pinning are unchanged, now set under `victoria-metrics-k8s-stack.vlsingle.spec` in `infra/victoria-metrics/values.yaml`.
