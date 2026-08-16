@@ -1,0 +1,68 @@
+## VictoriaMetrics k8s stack configuration
+## Ref: https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/
+##
+## Only overrides from the victoria-metrics-k8s-stack chart's own defaults
+## belong here. Everything else falls through to the chart's built-in values.
+
+victoria-metrics-k8s-stack:
+  # Cluster-wide collection: vmagent (a plain Deployment scraper) and the
+  # exporters (node-exporter DaemonSet, kube-state-metrics) carry no
+  # nodeSelector/toleration, so they are free to run on any node. Only the
+  # TSDB below is pinned to the home node, per ADR-0008.
+  vmagent: {}
+
+  grafana:
+    admin:
+      # Precreated Secret (provisioned by templates/external-secret.yaml from
+      # ESO's `onepassword` ClusterSecretStore) instead of the chart's default
+      # self-generated admin-password Secret. Without this, ArgoCD's
+      # repo-server renders the chart without cluster access, so the chart's
+      # lookup-based reuse guard (see grafana.password in the upstream chart)
+      # never finds the existing Secret and mints a new random password on
+      # every manual sync — see
+      # https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/#grafana-password-changes-constantly
+      existingSecret: grafana-admin
+
+  # k3s runs etcd, the scheduler, and the controller-manager in-process
+  # inside the single k3s server binary, not as separate kubeadm-style
+  # static pods carrying component=etcd/kube-scheduler/kube-controller-manager
+  # labels. The chart's Services/VMServiceScrapes for these assume kubeadm
+  # and never find a matching pod on this cluster, so left enabled they'd
+  # sit at zero endpoints permanently and (with vmalert) fire *Down alerts
+  # that can never resolve.
+  kubeEtcd:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+
+  # No alert destination configured yet — rules would evaluate into a null
+  # receiver and never actually notify anyone. Re-enable once a receiver
+  # (e.g. ntfy/Pushover/Tailscale-reachable webhook) is chosen.
+  vmalert:
+    enabled: false
+  alertmanager:
+    enabled: false
+
+  vmsingle:
+    spec:
+      # 30-day metrics retention (ADR-0008).
+      retentionPeriod: "30d"
+      storage:
+        storageClassName: local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+      # Home-node-only: the TSDB must run on the node that owns the disk.
+      # Toleration admits it past the home-node NoSchedule taint; the
+      # nodeSelector pins it to the labelled home node. See ADR-0002/0007.
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule

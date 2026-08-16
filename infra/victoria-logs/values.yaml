@@ -1,0 +1,25 @@
+## VictoriaLogs single configuration
+## Ref: https://docs.victoriametrics.com/helm/victoria-logs-single/
+##
+## Only overrides from the victoria-logs-single chart's own defaults belong
+## here. Everything else falls through to the chart's built-in values.
+
+victoria-logs-single:
+  server:
+    # 7-day log retention (ADR-0008).
+    retentionPeriod: "7d"
+    persistentVolume:
+      storageClassName: local-path
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
+    # Home-node-only: log storage must land on the node that owns the disk.
+    # Toleration admits the pod past the home-node NoSchedule taint; the
+    # nodeSelector pins it to the labelled home node. See ADR-0002/0007.
+    nodeSelector:
+      topology.kubernetes.io/zone: home
+    tolerations:
+      - key: node-role.kubernetes.io/home
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
