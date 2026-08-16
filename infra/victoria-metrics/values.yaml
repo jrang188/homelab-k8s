@@ -74,6 +74,15 @@ victoria-metrics-k8s-stack:
           value: "true"
           effect: NoSchedule
 
+  # Actual log collector — tails each node's local container logs
+  # (k8sCollector, enabled by the chart's own default) and forwards them
+  # to vlsingle. Left unpinned/no nodeSelector deliberately: it has to run
+  # on every node (DaemonSet-style, same reason as node-exporter), since a
+  # home-node-only nodeSelector would silently drop every control plane's
+  # logs.
+  vlagent:
+    enabled: true
+
   # k3s runs etcd, the scheduler, and the controller-manager in-process
   # inside the single k3s server binary, not as separate kubeadm-style
   # static pods carrying component=etcd/kube-scheduler/kube-controller-manager
