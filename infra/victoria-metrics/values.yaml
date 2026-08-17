@@ -49,17 +49,21 @@ victoria-metrics-k8s-stack:
         value: "true"
         effect: NoSchedule
 
+    # Operator-only tool — deliberately NOT on the public Traefik/
+    # Cloudflare path. ingressClassName: tailscale puts this on the
+    # tailnet only (MagicDNS name + Tailscale-issued TLS cert), same
+    # policy as Hermes Agent (see CONTEXT.md) and ArgoCD. Only apps meant
+    # to be shown off publicly should ever get ingressClassName: traefik
+    # + a cert-manager/cloudflare annotation.
     ingress:
       enabled: true
-      ingressClassName: traefik
-      annotations:
-        cert-manager.io/cluster-issuer: cloudflare
+      ingressClassName: tailscale
       hosts:
-        - grafana.sirwayne.xyz
+        - grafana
       tls:
         - secretName: grafana-tls
           hosts:
-            - grafana.sirwayne.xyz
+            - grafana
 
   kube-state-metrics:
     nodeSelector:
