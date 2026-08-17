@@ -8,23 +8,26 @@ argo-cd:
   configs:
     params:
       # argocd-server serves the web UI (HTTP/1.1) and gRPC (HTTP/2) on one
-      # port over its own self-signed TLS by default. Traefik terminates
-      # TLS at the edge (cert-manager-issued cert) and forwards cleartext,
-      # so the backend must stop doing TLS itself — otherwise Traefik would
-      # be double-terminating and the UI/gRPC-Web would break. Per ArgoCD's
-      # own Traefik ingress docs.
+      # port over its own self-signed TLS by default. The Tailscale operator
+      # terminates TLS at its own tailnet-facing proxy and forwards
+      # cleartext, so the backend must stop doing TLS itself — otherwise
+      # it would be double-terminating and the UI/gRPC-Web would break.
       server.insecure: true
 
   server:
     service:
       # Was NodePort (Klipper) before Ingress existed for this cluster; now
-      # fronted by Traefik, so ClusterIP is enough.
+      # fronted by the Tailscale operator's proxy, so ClusterIP is enough.
       type: ClusterIP
 
     ingress:
+      # Operator-only tool — deliberately NOT on the public Traefik/
+      # Cloudflare path. ingressClassName: tailscale puts this on the
+      # tailnet only (MagicDNS name + Tailscale-issued TLS cert), same
+      # policy as Hermes Agent (see CONTEXT.md) and Grafana. Only apps
+      # meant to be shown off publicly should ever get ingressClassName:
+      # traefik + a cert-manager/cloudflare annotation.
       enabled: true
-      ingressClassName: traefik
-      hostname: argocd.sirwayne.xyz
-      annotations:
-        cert-manager.io/cluster-issuer: cloudflare
+      ingressClassName: tailscale
+      hostname: argocd
       tls: true
