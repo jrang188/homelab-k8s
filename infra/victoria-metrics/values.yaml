@@ -49,6 +49,18 @@ victoria-metrics-k8s-stack:
         value: "true"
         effect: NoSchedule
 
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: cloudflare
+      hosts:
+        - grafana.sirwayne.xyz
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.sirwayne.xyz
+
   kube-state-metrics:
     nodeSelector:
       topology.kubernetes.io/zone: home
