@@ -30,10 +30,41 @@ step 1.
 
 ## 2. Store it in 1Password
 
-1. In the `Development` vault (matches `infra/eso`'s `ClusterSecretStore`),
-   create an item named `cloudflare-api-token`.
-2. Add a field named `api-token` with the token value from step 1.
-3. Both charts' `ExternalSecret`s pull this same item/field.
+All three of these must match exactly or ESO silently fails to create the
+Secret — see the troubleshooting note below.
+
+1. Vault: **`Development`**. Not `Personal`. `infra/eso`'s
+   `ClusterSecretStore` is pinned to a single vault (`spec.provider.
+   onepasswordSDK.vault`), and the ESO service account is only granted
+   access to that one — an item anywhere else is invisible to the cluster.
+2. Item name: **`cloudflare-api-token`** (singular).
+3. Field name: **`api-token`**.
+
+Both charts' `ExternalSecret`s resolve this as `<item>/<field>`, matching
+the convention already used by `infra/tailscale-operator` and
+`infra/victoria-metrics`.
+
+Verify before syncing anything:
+
+```bash
+op item get cloudflare-api-token --vault Development --fields api-token
+```
+
+### If the ExternalSecret won't sync
+
+Symptom: `kubectl get externalsecret -A` shows `SecretSyncedError`, and the
+`ClusterIssuer` reports `failed to get secret "cloudflare-api-token"`. ESO's
+log gives the real reason:
+
+```bash
+kubectl logs -n eso -l app.kubernetes.io/name=external-secrets --tail=50
+```
+
+`no item matched the secret reference query` means the vault, item name, or
+field name doesn't match the three values above — not that the token is
+invalid. Fix the 1Password item; no repo change is needed. (Hit for real on
+first go-live: the item had been created as `cloudflare-api-tokens` — plural
+— in the `Personal` vault.)
 
 ## 3. Floating IP — done
 
@@ -57,7 +88,25 @@ publish it or embed it in issued certs — but it is PII, so treat changing
 it as a deliberate choice, not something to default carelessly in other
 repos.
 
-## 5. Verify
+## 5. Sync the Applications
+
+The `infra` ApplicationSet template sets no `syncPolicy.automated`, so a
+newly discovered Application is created but never syncs on its own — it sits
+`OutOfSync` until told otherwise. Sync `cert-manager` **first** and confirm
+its `ExternalSecret` resolves before syncing `external-dns`, so a wrong
+1Password item is caught before any real DNS records get written:
+
+```bash
+argocd app sync cert-manager
+```
+
+Then, once step 6's first two checks pass:
+
+```bash
+argocd app sync external-dns
+```
+
+## 6. Verify
 
 1. `kubectl get externalsecret -n cert-manager -n external-dns` — both
    `cloudflare-api-token` should show `SecretSynced`.
