@@ -146,13 +146,115 @@ victoria-metrics-k8s-stack:
   kubeControllerManager:
     enabled: false
 
-  # No alert destination configured yet — rules would evaluate into a null
-  # receiver and never actually notify anyone. Re-enable once a receiver
-  # (e.g. ntfy/Pushover/Tailscale-reachable webhook) is chosen.
   vmalert:
-    enabled: false
+    enabled: true
+    spec:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+
   alertmanager:
-    enabled: false
+    enabled: true
+    spec:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      # Mounts the `discord-webhook` Secret (provisioned by
+      # templates/external-secret-discord-webhook.yaml from 1Password) at
+      # /etc/vm/secrets/discord-webhook/ — referenced below via
+      # webhook_url_file so the webhook URL never lands in this values.yaml
+      # or the rendered config Secret's own values, only in the mounted file.
+      secrets:
+        - discord-webhook
+    # Single real receiver for a single-person homelab: everything at
+    # warning/critical goes to the one Discord channel. group_by keeps a
+    # noisy group (e.g. every pod in a crashlooping Deployment) as one
+    # notification instead of one-per-pod.
+    #
+    # info-severity alerts route to `blackhole` instead — the default rule
+    # set has plenty of these (replica-count cosmetics, etc.) that aren't
+    # worth a phone notification for a solo operator.
+    config:
+      route:
+        receiver: discord
+        group_by: ["alertname", "namespace"]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        routes:
+          - receiver: blackhole
+            matchers:
+              - severity = info
+      receivers:
+        - name: discord
+          discord_configs:
+            - webhook_url_file: /etc/vm/secrets/discord-webhook/webhook-url
+              send_resolved: true
+        - name: blackhole
+
+  # defaultRules ships upstream kube-prometheus-stack-style alert groups for
+  # components this cluster doesn't run as scrapeable targets (see
+  # kubeEtcd/kubeScheduler/kubeControllerManager above — k3s runs these
+  # in-process, not as separate pods the chart's scrape config can find).
+  # Left enabled, these groups' alerts would key off metrics that never
+  # exist and — now that vmalert/alertmanager actually notify — fire
+  # permanently-unresolved false positives straight to Discord.
+  defaultRules:
+    groups:
+      etcd:
+        enabled: false
+      kube-scheduler.rules:
+        enabled: false
+      kubernetes-system-scheduler:
+        enabled: false
+      kubernetes-system-controller-manager:
+        enabled: false
+      # SLO burn-rate alerting on the apiserver error budget — designed for
+      # tracking multi-9s production SLAs over real traffic volume.
+      # Meaningless noise on a single low-traffic k3s apiserver at this
+      # scale.
+      kube-apiserver-slos:
+        enabled: false
+      kube-apiserver-burnrate.rules:
+        enabled: false
+      kube-apiserver-histogram.rules:
+        enabled: false
+    # Per-alert overrides for defaults that are broadly known to be
+    # low-signal/homelab-inappropriate even when the underlying metrics
+    # exist and are being scraped correctly.
+    rules:
+      # Fires on totally normal, harmless CPU throttling under cgroups v2;
+      # notoriously noisy even in production fleets, not worth a homelab
+      # phone notification.
+      CPUThrottlingHigh:
+        enabled: false
+      # A homelab is *meant* to run overcommitted — these would fire
+      # constantly on a 3-node Hetzner CX23 cluster + one home box and
+      # convey nothing actionable.
+      KubeCPUOvercommit:
+        enabled: false
+      KubeMemoryOvercommit:
+        enabled: false
 
   vmsingle:
     spec:

@@ -1,0 +1,87 @@
+# Two alerts prompted by a live check of this cluster's actual memory
+# headroom: the 3 Hetzner control planes are 4GB VMs running etcd
+# in-process (see ADR-0002/AGENTS.md) with no separate etcd pod to alert on
+# directly (that's why kubeEtcd is disabled above) — an OOM here risks
+# etcd/apiserver, not just one workload. At the time this was written,
+# available memory on the 3 control planes was ~15%/16%/30% — the default
+# rule set has no generic "node memory low" alert at all (the upstream
+# node-exporter mixin doesn't ship one), so this was a real gap, not
+# duplicate coverage.
+#
+# ControlPlaneMemoryPressure joins node-exporter's per-node memory ratio to
+# the k3s node name via kube_pod_info (keyed on the node-exporter DaemonSet
+# pod's host_ip) rather than kube_node_labels — this cluster's
+# kube-state-metrics isn't configured with a label allowlist, so
+# kube_node_labels{label_node_role_kubernetes_io_control_plane="true"}
+# collects no data here. Verified live against this cluster's VictoriaMetrics
+# before landing (control-plane node names all match k3s-control-plane-*,
+# confirmed via `kubectl get nodes`).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: node-memory-custom
+  namespace: {{ .Release.Namespace }}
+spec:
+  groups:
+    - name: node-memory-custom
+      rules:
+        - alert: ControlPlaneMemoryPressure
+          expr: |
+            (
+              (node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"})
+              * on(instance) group_left(node)
+              label_replace(kube_pod_info{created_by_name="victoria-metrics-prometheus-node-exporter"}, "instance", "$1:9100", "host_ip", "(.+)")
+            )
+            and on(node)
+            kube_pod_info{created_by_name="victoria-metrics-prometheus-node-exporter", node=~"k3s-control-plane.*"}
+            < 0.15
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: A control-plane node is low on available memory
+            description: >-
+              {{`{{ $labels.node }}`}} has {{`{{ $value | humanizePercentage }}`}}
+              memory available. This node also runs etcd in-process —
+              memory pressure here risks etcd/apiserver, not just a single
+              workload.
+        - alert: ControlPlaneMemoryCritical
+          expr: |
+            (
+              (node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"})
+              * on(instance) group_left(node)
+              label_replace(kube_pod_info{created_by_name="victoria-metrics-prometheus-node-exporter"}, "instance", "$1:9100", "host_ip", "(.+)")
+            )
+            and on(node)
+            kube_pod_info{created_by_name="victoria-metrics-prometheus-node-exporter", node=~"k3s-control-plane.*"}
+            < 0.08
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A control-plane node is critically low on memory
+            description: >-
+              {{`{{ $labels.node }}`}} has {{`{{ $value | humanizePercentage }}`}}
+              memory available — real risk of the kernel OOM-killing etcd
+              or kube-apiserver, which would affect the whole cluster's
+              quorum, not just this node.
+
+        # Cluster-wide, not control-plane-scoped: the general form of the
+        # same lesson (see argocd/values.yaml's controller.resources
+        # comment — an unbounded pod previously had nothing stopping it
+        # from pressuring etcd/kube-apiserver via node memory). Catches it
+        # anywhere in the cluster, not just after it's already visible as
+        # node-level pressure.
+        - alert: ContainerOOMKilled
+          expr: |
+            increase(kube_pod_container_status_restarts_total[15m]) > 0
+            and
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: A container was OOMKilled and restarted
+            description: >-
+              {{`{{ $labels.namespace }}`}}/{{`{{ $labels.pod }}`}}
+              ({{`{{ $labels.container }}`}}) was OOMKilled in the last 15m.
+              Its memory limit may be too low, or it's leaking.

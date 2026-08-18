@@ -1,0 +1,40 @@
+# The highest-value homelab alert in this stack: a missed cert renewal is
+# the classic "nobody noticed for 2 weeks" failure, and this cluster
+# publicly exposes services via cert-manager + Cloudflare (see
+# docs/adr/0005-public-exposure-via-cloudflare-and-floating-ip.md).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: cert-manager-custom
+  namespace: {{ .Release.Namespace }}
+spec:
+  groups:
+    - name: cert-manager-custom
+      rules:
+        - alert: CertManagerCertExpiringSoon
+          expr: |
+            avg by (exported_namespace, namespace, name) (
+              certmanager_certificate_expiration_timestamp_seconds - time()
+            ) < (14 * 24 * 3600)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: A cert-manager Certificate expires in under 14 days
+            description: >-
+              {{`{{ $labels.name }}`}} in {{`{{ $labels.exported_namespace }}`}}
+              expires in {{`{{ $value | humanizeDuration }}`}}.
+        - alert: CertManagerCertNotReady
+          expr: |
+            max by (name, exported_namespace, namespace, condition) (
+              certmanager_certificate_ready_status{condition!="True"}
+            ) == 1
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: A cert-manager Certificate is not Ready
+            description: >-
+              {{`{{ $labels.name }}`}} in {{`{{ $labels.exported_namespace }}`}}
+              has been non-Ready ({{`{{ $labels.condition }}`}}) for 30m+ —
+              renewal is likely failing, not just mid-cycle.

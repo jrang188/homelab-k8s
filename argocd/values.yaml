@@ -96,6 +96,14 @@ argo-cd:
       limits:
         memory: 1536Mi
 
+    # Exposes argocd_app_info (sync/health status) and argocd_app_sync_total
+    # — scraped by templates/vmservicescrape.yaml below for the sync/health
+    # alerts in templates/vmrule.yaml. Just the metrics Service; no
+    # ServiceMonitor (this cluster doesn't have the prometheus-operator CRD
+    # installed, only the VictoriaMetrics operator's own VMServiceScrape).
+    metrics:
+      enabled: true
+
   repoServer:
     resources:
       requests:

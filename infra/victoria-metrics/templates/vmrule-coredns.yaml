@@ -1,0 +1,40 @@
+# CoreDNS isn't covered by defaultRules' upstream groups (those cover node/
+# pod/kube-apiserver health, not in-cluster DNS). Added because cluster DNS
+# has already broken here once — the Hetzner floating IP overwriting
+# flannel's public-ip-overwrite killed cross-node VXLAN and, with it, DNS.
+# Picked up automatically: vmalert's spec.selectAllByDefault is true (see
+# the vendored chart's vmalert defaults), so any VMRule in this namespace is
+# selected without needing matching labels.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: coredns-custom
+  namespace: {{ .Release.Namespace }}
+spec:
+  groups:
+    - name: coredns-custom
+      rules:
+        - alert: CoreDNSHighServfailRate
+          expr: |
+            sum(rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m]))
+              /
+            sum(rate(coredns_dns_responses_total[5m]))
+              > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: CoreDNS is returning SERVFAIL for a large share of queries
+            description: >-
+              {{`{{ $value | humanizePercentage }}`}} of CoreDNS responses
+              over the last 5m were SERVFAIL. Past cause here: the Hetzner
+              floating IP breaking flannel VXLAN across nodes.
+        - alert: CoreDNSPanicking
+          expr: increase(coredns_panics_total[10m]) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: CoreDNS has panicked and restarted
+            description: >-
+              {{`{{ $value }}`}} CoreDNS panic(s) in the last 10m on
+              {{`{{ $labels.instance }}`}}.

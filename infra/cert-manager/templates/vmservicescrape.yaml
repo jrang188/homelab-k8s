@@ -1,0 +1,17 @@
+# cert-manager's own chart already exposes metrics by default
+# (prometheus.enabled: true is the chart's own default, not something this
+# repo's values.yaml turns on) — it just wasn't being scraped by anything.
+# Targets the `cert-manager` Service the chart already creates
+# (templates/service.yaml, port http-metrics/9402).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: cert-manager
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/component: controller
+  endpoints:
+    - port: http-metrics
