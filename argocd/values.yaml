@@ -14,6 +14,104 @@ argo-cd:
       # it would be double-terminating and the UI/gRPC-Web would break.
       server.insecure: true
 
+      # Defaults (20/10) are sized for fleets managing many clusters/apps.
+      # This homelab has a handful of Applications; fewer processors means
+      # less concurrent cluster-cache/reconciliation work in memory on
+      # control-plane nodes that are already memory-constrained (4GB VMs
+      # running etcd).
+      controller.status.processors: "10"
+      controller.operation.processors: "5"
+
+    cm:
+      # Chart default exclusions (kept, so we don't lose them by overriding
+      # this key) plus v1 Event, which isn't excluded upstream but is one of
+      # the highest-churn object types in any cluster and was inflating the
+      # application-controller's in-memory cluster cache.
+      resource.exclusions: |
+        - apiGroups:
+          - ''
+          kinds:
+          - Event
+        - apiGroups:
+          - ''
+          - discovery.k8s.io
+          kinds:
+          - Endpoints
+          - EndpointSlice
+        - apiGroups:
+          - coordination.k8s.io
+          kinds:
+          - Lease
+        - apiGroups:
+          - authentication.k8s.io
+          - authorization.k8s.io
+          kinds:
+          - SelfSubjectReview
+          - TokenReview
+          - LocalSubjectAccessReview
+          - SelfSubjectAccessReview
+          - SelfSubjectRulesReview
+          - SubjectAccessReview
+        - apiGroups:
+          - certificates.k8s.io
+          kinds:
+          - CertificateSigningRequest
+        - apiGroups:
+          - cert-manager.io
+          kinds:
+          - CertificateRequest
+        - apiGroups:
+          - cilium.io
+          kinds:
+          - CiliumIdentity
+          - CiliumEndpoint
+          - CiliumEndpointSlice
+        - apiGroups:
+          - kyverno.io
+          - reports.kyverno.io
+          - wgpolicyk8s.io
+          kinds:
+          - PolicyReport
+          - ClusterPolicyReport
+          - EphemeralReport
+          - ClusterEphemeralReport
+          - AdmissionReport
+          - ClusterAdmissionReport
+          - BackgroundScanReport
+          - ClusterBackgroundScanReport
+          - UpdateRequest
+
+  # Memory requests/limits for the components we've actually measured live
+  # (controller, repo-server, server, applicationset). Control-plane nodes
+  # are 4GB VMs running etcd; these were previously unbounded, so nothing
+  # stopped a runaway pod from pressuring etcd/kube-apiserver on the same
+  # node. Requests are set near observed steady-state usage so the
+  # scheduler bin-packs correctly; limits leave headroom above that but
+  # still cap growth.
+  controller:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 768Mi
+      limits:
+        memory: 1536Mi
+
+  repoServer:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 384Mi
+
+  applicationSet:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 192Mi
+
   server:
     service:
       # Was NodePort (Klipper) before Ingress existed for this cluster; now
@@ -31,3 +129,10 @@ argo-cd:
       ingressClassName: tailscale
       hostname: argocd
       tls: true
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+      limits:
+        memory: 256Mi

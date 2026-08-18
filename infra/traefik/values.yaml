@@ -5,6 +5,15 @@ traefik:
   log:
     level: DEBUG
 
+  # Previously unbounded. Control-plane nodes are 4GB VMs running etcd, and
+  # observed usage per replica has ranged ~130-220Mi.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+
   service:
     spec:
       type: LoadBalancer
