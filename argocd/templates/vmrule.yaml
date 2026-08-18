@@ -24,6 +24,7 @@ spec:
             description: >-
               {{`{{ $labels.name }}`}} has been OutOfSync for over 30
               minutes — longer than normal sync-cycle convergence.
+          record: ""
         - alert: ArgoCDAppHealthDegraded
           expr: argocd_app_info{health_status="Degraded"} == 1
           for: 20m
@@ -34,6 +35,7 @@ spec:
             description: >-
               {{`{{ $labels.name }}`}} has been Degraded for over 20
               minutes.
+          record: ""
         - alert: ArgoCDAppSyncFailed
           expr: increase(argocd_app_sync_total{phase=~"Error|Failed"}[10m]) > 0
           for: 0m
@@ -44,3 +46,4 @@ spec:
             description: >-
               {{`{{ $labels.name }}`}} had a failed sync attempt
               ({{`{{ $labels.phase }}`}}) in the last 10m.
+          record: ""

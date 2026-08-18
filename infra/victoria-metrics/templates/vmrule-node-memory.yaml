@@ -45,6 +45,7 @@ spec:
               memory available. This node also runs etcd in-process —
               memory pressure here risks etcd/apiserver, not just a single
               workload.
+          record: ""
         - alert: ControlPlaneMemoryCritical
           expr: |
             (
@@ -65,6 +66,7 @@ spec:
               memory available — real risk of the kernel OOM-killing etcd
               or kube-apiserver, which would affect the whole cluster's
               quorum, not just this node.
+          record: ""
 
         # Cluster-wide, not control-plane-scoped: the general form of the
         # same lesson (see argocd/values.yaml's controller.resources
@@ -85,3 +87,4 @@ spec:
               {{`{{ $labels.namespace }}`}}/{{`{{ $labels.pod }}`}}
               ({{`{{ $labels.container }}`}}) was OOMKilled in the last 15m.
               Its memory limit may be too low, or it's leaking.
+          record: ""

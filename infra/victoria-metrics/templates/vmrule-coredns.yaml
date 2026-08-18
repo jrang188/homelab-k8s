@@ -29,6 +29,7 @@ spec:
               {{`{{ $value | humanizePercentage }}`}} of CoreDNS responses
               over the last 5m were SERVFAIL. Past cause here: the Hetzner
               floating IP breaking flannel VXLAN across nodes.
+          record: ""
         - alert: CoreDNSPanicking
           expr: increase(coredns_panics_total[10m]) > 0
           labels:
@@ -38,3 +39,4 @@ spec:
             description: >-
               {{`{{ $value }}`}} CoreDNS panic(s) in the last 10m on
               {{`{{ $labels.instance }}`}}.
+          record: ""

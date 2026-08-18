@@ -24,6 +24,7 @@ spec:
             description: >-
               {{`{{ $labels.name }}`}} in {{`{{ $labels.exported_namespace }}`}}
               expires in {{`{{ $value | humanizeDuration }}`}}.
+          record: ""
         - alert: CertManagerCertNotReady
           expr: |
             max by (name, exported_namespace, namespace, condition) (
@@ -38,3 +39,4 @@ spec:
               {{`{{ $labels.name }}`}} in {{`{{ $labels.exported_namespace }}`}}
               has been non-Ready ({{`{{ $labels.condition }}`}}) for 30m+ —
               renewal is likely failing, not just mid-cycle.
+          record: ""
