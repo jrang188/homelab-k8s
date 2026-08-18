@@ -25,6 +25,12 @@
       "skillPath": "skills/grafana-datasources/datasources-provisioning/SKILL.md",
       "computedHash": "3b45321e5eb57f512e484eacc2c77a3c71ecc460df4643b6f1816481c61c4c03"
     },
+    "grafana-oss": {
+      "source": "grafana/skills",
+      "sourceType": "github",
+      "skillPath": "skills/grafana-core/grafana-oss/SKILL.md",
+      "computedHash": "6638b23a0e6ee2cb2c35fa5c3646b78c183ca018209f9b37efeb5b7e6a71e8af"
+    },
     "helm-chart-scaffolding": {
       "source": "wshobson/agents",
       "sourceType": "github",
