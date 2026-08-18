@@ -165,6 +165,15 @@ victoria-metrics-k8s-stack:
 
   alertmanager:
     enabled: true
+    # Without this, the chart's fullname helper produces
+    # "victoria-metrics-victoria-metrics-k8s-stack" (this release is named
+    # "victoria-metrics", same as the chart's own name prefix, and the two
+    # don't get deduped here). vmsingle/vlsingle use a short enough
+    # resource-type prefix that this still barely fits in a label value;
+    # vmalertmanager's longer prefix pushes the StatefulSet's
+    # controller-revision-hash label past Kubernetes' 63-byte cap and pods
+    # fail to create. Shortened name sidesteps it.
+    name: "alertmanager"
     spec:
       resources:
         requests:
