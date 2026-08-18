@@ -162,6 +162,16 @@ victoria-metrics-k8s-stack:
           operator: Equal
           value: "true"
           effect: NoSchedule
+      # The chart auto-derives external.url (used to build the "Source"
+      # link on every alert notification) from grafana.ingress.hosts[0]
+      # verbatim — just "grafana", with no ts.net suffix. That's correct
+      # for a normal Ingress class, but the tailscale ingress class treats
+      # `hosts: [grafana]` as a MagicDNS short name, not the full address;
+      # the real reachable/cert-valid hostname is grafana.tail8255cc.ts.net.
+      # Left as the chart's default, every alert link in Discord points
+      # somewhere that doesn't resolve/TLS-validate off-tailnet.
+      extraArgs:
+        external.url: "https://grafana.tail8255cc.ts.net"
 
   alertmanager:
     enabled: true
