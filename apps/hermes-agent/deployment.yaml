@@ -36,13 +36,17 @@ spec:
         - name: hermes-agent
           image: nousresearch/hermes-agent:v2026.8.18
           imagePullPolicy: IfNotPresent
-          # `gateway run` is the image's supervised main process (s6 keeps it
-          # alive and, per HERMES_DASHBOARD=1, supervises the dashboard
-          # alongside it in the same container — the two can't be split
-          # across separate pods, since the dashboard's liveness detection
-          # needs a shared PID namespace with the gateway). Hermes Desktop's
-          # remote-connection mode talks to the dashboard, not the gateway's
-          # own OpenAI-compatible API, so only that port is exposed here.
+          # `gateway run` is the image's supervised main process — s6 keeps
+          # it alive and, with HERMES_DASHBOARD=1, supervises the dashboard
+          # alongside it on port 9119. Hermes Desktop's remote-connection
+          # mode talks to that same dashboard backend (confirmed in
+          # docker.md: "The Desktop app's Remote Gateway connection talks to
+          # a `hermes dashboard` backend... enabled by HERMES_DASHBOARD=1"),
+          # and it's also a full browser-usable web UI. This mode (rather
+          # than standalone `hermes serve`) is what leaves room for
+          # messaging platforms (Telegram/Discord/etc.) later — `gateway
+          # run` is the process that actually runs them; that's pure
+          # runtime config (`hermes tools`), no manifest change needed.
           # https://hermes-agent.nousresearch.com/docs/user-guide/docker#running-the-dashboard
           args:
             - gateway

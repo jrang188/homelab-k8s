@@ -1,7 +1,8 @@
 # `apps/hermes-agent` — Hermes Agent (plain manifests)
 
 Plain Kubernetes manifests (`Deployment`, `PersistentVolumeClaim`, `Service`,
-plus an `ExternalSecret` for its dashboard credentials) for NousResearch's
+plus an `ExternalSecret` for its dashboard credentials, plus a `/dev/shm`
+`emptyDir` for Playwright/Chromium) for NousResearch's
 [`hermes-agent`](https://github.com/NousResearch/hermes-agent), per
 [ADR-0001](../../docs/adr/0001-plain-manifests-not-operator-or-chart.md) —
 no official Kubernetes packaging exists upstream to wrap.
@@ -20,15 +21,17 @@ no official Kubernetes packaging exists upstream to wrap.
 
 Runs `gateway run` — the image's supervised main process — with
 `HERMES_DASHBOARD=1` set so the dashboard comes up as an s6-supervised
-sibling service in the *same* container. This is not optional: the docs
-note the dashboard's liveness detection needs a shared PID namespace with
-the gateway, so it can't be split into a second Deployment/pod. Hermes
-Desktop's remote-connection mode (Settings → Gateways →
-`http://hermes-agent:9119` once resolved over Tailscale MagicDNS) talks to
-this dashboard port, not the gateway's own OpenAI-compatible API server
-(port 8642, not exposed here — unused by this deployment's design). See
-upstream's
-[docker.md](https://hermes-agent.nousresearch.com/docs/user-guide/docker).
+sibling service in the *same* container, on port 9119. Docker's own docs
+confirm this is what Hermes Desktop's remote-connection mode talks to
+("The Desktop app's Remote Gateway connection talks to a `hermes dashboard`
+backend... enabled by `HERMES_DASHBOARD=1`") — and the same port serves a
+full browser-usable web UI, not just the Desktop app's API. This mode
+(rather than a standalone headless `hermes serve`) is deliberate: it's also
+the process that runs messaging-platform gateways (Telegram/Discord/Slack),
+so if you ever want those, it's pure runtime config (`hermes tools`) — no
+manifest change needed, since `gateway run` is already the container's main
+process. See upstream's
+[docker.md — Running the dashboard](https://hermes-agent.nousresearch.com/docs/user-guide/docker#running-the-dashboard).
 
 A `/dev/shm` `emptyDir` (backed by memory, 1Gi) is mounted alongside the
 data PVC: Playwright/Chromium (bundled in the image, used for browser
