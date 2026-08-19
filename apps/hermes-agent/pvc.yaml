@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-agent-data
+  namespace: hermes-agent
+spec:
+  # local-path-provisioner (infra/local-path-provisioner) — the general-purpose
+  # home-node-scoped StorageClass, per ADR-0002/0007. WaitForFirstConsumer
+  # binding mode means this stays Pending until the Deployment's pod is
+  # scheduled onto the home node.
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

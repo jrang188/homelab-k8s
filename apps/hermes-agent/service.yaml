@@ -1,0 +1,22 @@
+# Exposed over the tailnet by the Tailscale Kubernetes operator
+# (infra/tailscale-operator) rather than a public Traefik Ingress — a
+# workload capable of executing agent-issued commands should never be
+# reachable from the public internet. `type: LoadBalancer` +
+# `loadBalancerClass: tailscale` is the operator's cluster-ingress method:
+# https://tailscale.com/kb/1439/kubernetes-operator-cluster-ingress
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+  annotations:
+    tailscale.com/hostname: hermes-agent
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: hermes-agent
+  ports:
+    - name: dashboard
+      port: 9119
+      targetPort: dashboard
