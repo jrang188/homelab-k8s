@@ -18,7 +18,9 @@ the workload as root. See ADR-0010 for the full comparison.
 - **Stateless** (`deployment.yaml`): a single non-root container configured
   entirely via env vars — the image's default `settings.yml` already sets
   `use_default_settings: true`, so `SEARXNG_*` env vars are all that's needed.
-  No PVC, no home-node pinning, no ConfigMap.
+  No PVC and no ConfigMap, but pinned to the home node
+  ([ADR-0002](../../docs/adr/0002-home-node-pinning-and-scoped-storage.md)
+  pattern) for its RAM/CPU headroom.
 - **Bot-protection limiter off** (`SEARXNG_LIMITER=false`): a single-user
   instance reachable only on the tailnet already has access control at the
   network layer, so SearXNG's Redis/Valkey rate limiter isn't needed. If it

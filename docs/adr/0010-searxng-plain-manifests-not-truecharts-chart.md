@@ -53,8 +53,9 @@ plain-manifest fit:
   secret (`SEARXNG_SECRET`) comes from 1Password via ESO, per the repo's
   secrets bootstrap contract.
 - **No PVC** — the image-proxy cache (`/var/cache/searxng`) is ephemeral and
-  regenerable, left in the container layer; hence no home-node pinning either
-  (it may schedule on any schedulable node, control planes included).
+  regenerable, left in the container layer. It's still pinned to the home
+  node (ADR-0002's scheduling pattern) for RAM/CPU headroom, even though
+  there's no storage binding it there.
 - **Bot-protection limiter off** (`SEARXNG_LIMITER=false`) — a single-user
   instance reachable only on the tailnet already has its access control at
   the network layer, so SearXNG's Redis/Valkey rate limiter isn't needed.
