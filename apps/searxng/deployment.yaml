@@ -1,0 +1,106 @@
+# SearXNG — plain manifests, per ADR-0010. A single stateless container:
+# configured entirely via env vars (the image's settings.yml already sets
+# `use_default_settings: true`), so no ConfigMap and no PVC; the image-proxy
+# cache in /var/cache/searxng is ephemeral. Pinned to the home node — the
+# only node with the RAM/CPU headroom for a search workload (per operator
+# review); ADR-0002's scheduling pattern, applied for resources rather than
+# storage.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: searxng
+  labels:
+    app: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      securityContext:
+        # The official image runs as the non-root `searxng` user (uid 977) —
+        # this asserts it rather than overriding it, and would fail loudly if
+        # a future tag regressed to root (unlike the TrueCharts chart, which
+        # forces runAsUser: 0 + SETUID/SETGID — see ADR-0010).
+        runAsNonRoot: true
+      # Home-node-only, per operator review: the home node is the only node
+      # with the RAM/CPU for a search workload, while the control planes are
+      # 4GB VMs already running etcd + Traefik. Same pattern as
+      # apps/hermes-agent (ADR-0002): the toleration admits the pod past the
+      # home node's NoSchedule taint, the nodeSelector keeps it from landing
+      # anywhere else.
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: searxng
+          image: searxng/searxng:2026.8.20-487d7a96e
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            # Container-level hardening, per review — ADR-0010 argues against
+            # TrueCharts' root + SETUID/SETGID, so back that up at the
+            # container level: no privilege escalation, no capabilities (the
+            # image runs as non-root uid 977 and needs neither). 
+            # readOnlyRootFilesystem is left at its default (false): the image
+            # writes its image-proxy cache to /var/cache/searxng, so RO-root
+            # would need an emptyDir mounted there first (deferred — see PR
+            # review thread).
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            # secret_key — required (no safe default). From 1Password via ESO,
+            # see external-secret.yaml. Generate with `openssl rand -base64 32`.
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: searxng-secret
+                  key: SEARXNG_SECRET
+            # Public URL — the tailnet MagicDNS name this Service is exposed
+            # as (tailscale.com/hostname in service.yaml); must match or
+            # SearXNG generates broken links/sessions behind the proxy.
+            - name: SEARXNG_BASE_URL
+              value: "https://searxng.tail8255cc.ts.net/"
+            # Single-user instance reachable only on the tailnet: bot/rate
+            # limiting is redundant, and disabling it removes the Valkey
+            # dependency. Re-enable + add Valkey (SEARXNG_VALKEY_URL) if it
+            # ever becomes multi-user or public.
+            - name: SEARXNG_LIMITER
+              value: "false"
+            # The image listens on 0.0.0.0:8080; set explicitly so a future
+            # default change can't leave the Service unreachable.
+            - name: SEARXNG_BIND_ADDRESS
+              value: "0.0.0.0"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
