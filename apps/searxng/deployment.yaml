@@ -45,6 +45,19 @@ spec:
         - name: searxng
           image: searxng/searxng:2026.8.20-487d7a96e
           imagePullPolicy: IfNotPresent
+          securityContext:
+            # Container-level hardening, per review — ADR-0010 argues against
+            # TrueCharts' root + SETUID/SETGID, so back that up at the
+            # container level: no privilege escalation, no capabilities (the
+            # image runs as non-root uid 977 and needs neither). 
+            # readOnlyRootFilesystem is left at its default (false): the image
+            # writes its image-proxy cache to /var/cache/searxng, so RO-root
+            # would need an emptyDir mounted there first (deferred — see PR
+            # review thread).
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             # secret_key — required (no safe default). From 1Password via ESO,
             # see external-secret.yaml. Generate with `openssl rand -base64 32`.
