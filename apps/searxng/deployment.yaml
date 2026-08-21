@@ -12,6 +12,11 @@ metadata:
   namespace: searxng
   labels:
     app: searxng
+  annotations:
+    # Roll the pod automatically when the settings ConfigMap changes —
+    # subPath mounts never hot-update in the container, so without this a
+    # settings edit needs a manual `kubectl rollout restart` to take effect.
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:
