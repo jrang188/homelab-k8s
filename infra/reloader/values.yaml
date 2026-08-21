@@ -1,0 +1,12 @@
+# Reloader — watches ConfigMap/Secret changes and rolling-restarts dependent
+# workloads. Needed because subPath-mounted ConfigMaps never hot-update in the
+# container (kubelet only syncs non-subPath binds), so apps/searxng's settings
+# would otherwise require a manual `kubectl rollout restart` after every edit.
+reloader:
+  # Match the cluster's label conventions used by other infra (traefik,
+  # cert-manager): plain app labels, no extra machinery.
+  reloader:
+    deployment:
+      # Home node has the headroom; control planes are 4GB etcd VMs.
+      nodeSelector:
+        kubernetes.io/os: linux
