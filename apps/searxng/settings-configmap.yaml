@@ -3,8 +3,8 @@
 # Hermes' web search provider calls /search?format=json, so the JSON format
 # MUST be enabled or it gets a 403. Mounted over the template-generated file.
 #
-# use_default_settings: true keeps upstream defaults and only applies the
-# overrides below (format + disabling engines that hard-fail to load).
+# use_default_settings.engines.remove keeps upstream defaults but drops the
+# engines that hard-fail to load in this minimal image (torch, ahmia).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,7 +14,13 @@ metadata:
     app: searxng
 data:
   settings.yml: |
-    use_default_settings: true
+    use_default_settings:
+      engines:
+        remove:
+          # needs the optional `torch` python package, absent from the image
+          - torch
+          # Tor hidden-service engine; useless without Tor connectivity
+          - ahmia
 
     search:
       # Hermes web_search provider requires JSON output (see provider.py:
@@ -22,12 +28,3 @@ data:
       formats:
         - html
         - json
-
-    engines:
-      # Hard-fail to load in the minimal container image -> noisy ERROR logs.
-      # torch needs the torch package; ahmia is a Tor-only hidden-service
-      # engine. Neither is useful on a private single-user instance.
-      - name: torch
-        disabled: true
-      - name: ahmia
-        disabled: true
