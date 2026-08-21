@@ -1,0 +1,86 @@
+# Wrapper-chart overrides for the upstream goauthentik/authentik chart
+# (pinned to 2026.8.0 in Chart.yaml). Only deviations from upstream defaults
+# are set here; everything else inherits from the chart.
+#
+# This is a wrapper chart: the dependency is the `authentik` subchart, so every
+# key below sits under `authentik:` mapping to that subchart's own top-level
+# values keys (global, authentik, server, worker, postgresql).
+
+authentik:
+  global:
+    # Pin ALL authentik components (server, worker) to the home node.
+    # See docs/adr/0002-home-node-pinning-and-scoped-storage.md.
+    nodeSelector:
+      topology.kubernetes.io/zone: home
+    tolerations:
+      - key: node-role.kubernetes.io/home
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+
+  # The `authentik:` section of the upstream chart's values (its own config).
+  authentik:
+    # Secrets are supplied via ESO/1Password (external-secret.yaml) instead of
+    # being rendered into the chart. Setting existingSecret.secretName makes
+    # the chart skip its own generated config secret and instead use the
+    # ESO-provisioned `authentik-config` secret, whose keys are the AUTHENTIK_*
+    # env names the server/worker containers load via envFrom.
+    existingSecret:
+      secretName: authentik-config
+    # Single-user homelab; no SMTP for now (email management not needed for a
+    # single-user IdP yet).
+    email:
+      host: ""
+
+  # Single replicas; modest resource requests/limits (upstream leaves them empty).
+  server:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    # Tailnet-only exposure is handled by a chart-local Service
+    # (templates/authentik-tailscale-service.yaml) using the Tailscale
+    # operator's `loadBalancerClass: tailscale`. The upstream chart's own
+    # Service template has no loadBalancerClass key, so we leave its ClusterIP
+    # service (used for in-cluster DNS) and add the LB service by hand.
+    ingress:
+      enabled: false # we do NOT use Traefik/public exposure for Authentik
+  worker:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+  # The bundled PostgreSQL subchart (upstream leaves it disabled by default).
+  # Pinned to the home node with local-path (home-node-scoped) storage — see
+  # ADR-0002 / ADR-0007.
+  postgresql:
+    enabled: true
+    primary:
+      nodeSelector:
+        topology.kubernetes.io/zone: home
+      tolerations:
+        - key: node-role.kubernetes.io/home
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      persistence:
+        enabled: true
+        storageClass: local-path
+        size: 4Gi
+    auth:
+      # Wire the DB password from 1Password (external-secret.yaml): the
+      # `password` key (the `authentik` app user) comes from the same 1Password
+      # item used for AUTHENTIK_POSTGRESQL__PASSWORD.
+      enablePostgresUser: false
+      username: authentik
+      database: authentik
+      existingSecret: authentik-postgres-credentials
+      secretKeys:
+        userPasswordKey: password
