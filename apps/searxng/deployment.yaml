@@ -38,14 +38,15 @@ spec:
                 secretKeyRef:
                   name: searxng-secret
                   key: SEARXNG_SECRET
-            # Public URL — MUST match the Ingress host (ingress.yaml) or
+            # Public URL — the tailnet MagicDNS name this Service is exposed
+            # as (tailscale.com/hostname in service.yaml); must match or
             # SearXNG generates broken links/sessions behind the proxy.
             - name: SEARXNG_BASE_URL
-              value: "https://searxng.example.com/"
-            # Single-user instance fronted by Cloudflare (ADR-0005): bot/rate
+              value: "https://searxng.tail8255cc.ts.net/"
+            # Single-user instance reachable only on the tailnet: bot/rate
             # limiting is redundant, and disabling it removes the Valkey
             # dependency. Re-enable + add Valkey (SEARXNG_VALKEY_URL) if it
-            # ever becomes multi-user.
+            # ever becomes multi-user or public.
             - name: SEARXNG_LIMITER
               value: "false"
             # The image listens on 0.0.0.0:8080; set explicitly so a future

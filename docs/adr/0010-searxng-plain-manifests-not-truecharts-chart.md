@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 Adding [SearXNG](https://docs.searxng.org/) (a self-hosted metasearch engine)
-as the cluster's first public-facing web app. Two candidates: the
+for the cluster. Two candidates: the
 [TrueCharts `searxng` chart](https://truecharts.org/charts/stable/searxng/) —
 the only ready-made Helm chart for it — or hand-written plain manifests.
 
@@ -56,21 +56,23 @@ plain-manifest fit:
   regenerable, left in the container layer; hence no home-node pinning either
   (it may schedule on any schedulable node, control planes included).
 - **Bot-protection limiter off** (`SEARXNG_LIMITER=false`) — a single-user
-  instance fronted by Cloudflare (ADR-0005) already has bot/rate protection;
-  this removes the need for a Valkey dependency. Valkey + `SEARXNG_VALKEY_URL`
-  can be added later if it ever becomes multi-user.
-- **Exposure** — a Traefik `Ingress` (this repo owns Traefik), TLS via the
-  `cloudflare` `ClusterIssuer` (DNS-01), DNS via external-dns, all fronted by
-  Cloudflare per ADR-0005.
+  instance reachable only on the tailnet already has its access control at
+  the network layer, so SearXNG's Redis/Valkey rate limiter isn't needed.
+  Valkey + `SEARXNG_VALKEY_URL` can be added later if it ever becomes
+  multi-user or public.
+- **Exposure** — tailnet-only via the Tailscale Kubernetes operator
+  (`infra/tailscale-operator`): a `Service` with `type: LoadBalancer` +
+  `loadBalancerClass: tailscale` + `tailscale.com/hostname`, the same pattern
+  as `apps/hermes-agent`. Not the public Traefik/Cloudflare path (ADR-0005) —
+  a single-user search instance shouldn't be reachable from the public
+  internet.
 
 ## Consequences
 
 We own the config and the upgrade path (bump the pinned image tag
-deliberately), with no third-party chart/operator layer to keep in sync. Two
-out-of-band inputs are required before this Application goes healthy — a
-1Password item for `SEARXNG_SECRET` and a real Cloudflare-managed hostname to
-replace the `searxng.example.com` placeholder (both documented in the app
-README).
+deliberately), with no third-party chart/operator layer to keep in sync. One
+out-of-band input is required before this Application goes healthy — a
+1Password item for `SEARXNG_SECRET` (documented in the app README).
 
 ## Considered options
 

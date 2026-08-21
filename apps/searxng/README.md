@@ -1,8 +1,8 @@
 # `apps/searxng` — SearXNG (plain manifests)
 
-Plain Kubernetes manifests (`Deployment`, `Service`, `Ingress`,
-`ExternalSecret`) for [SearXNG](https://docs.searxng.org/), a self-hosted
-metasearch engine. Deployed as plain manifests rather than the
+Plain Kubernetes manifests (`Deployment`, `Service`, `ExternalSecret`) for
+[SearXNG](https://docs.searxng.org/), a self-hosted metasearch engine.
+Deployed as plain manifests rather than the
 [TrueCharts chart](https://truecharts.org/charts/stable/searxng/) per
 [ADR-0010](../../docs/adr/0010-searxng-plain-manifests-not-truecharts-chart.md).
 
@@ -20,23 +20,24 @@ the workload as root. See ADR-0010 for the full comparison.
   `use_default_settings: true`, so `SEARXNG_*` env vars are all that's needed.
   No PVC, no home-node pinning, no ConfigMap.
 - **Bot-protection limiter off** (`SEARXNG_LIMITER=false`): a single-user
-  instance already fronted by Cloudflare doesn't need SearXNG's Redis/Valkey
-  rate limiter. If it ever goes multi-user, add a Valkey deployment and set
+  instance reachable only on the tailnet already has access control at the
+  network layer, so SearXNG's Redis/Valkey rate limiter isn't needed. If it
+  ever goes multi-user or public, add a Valkey deployment and set
   `SEARXNG_VALKEY_URL`.
-- **Exposure** (`ingress.yaml`): Traefik → Cloudflare DNS-01 cert
-  (`cloudflare` ClusterIssuer) → external-dns DNS, per
-  [ADR-0005](../../docs/adr/0005-public-exposure-via-cloudflare-and-floating-ip.md).
+- **Exposure** (`service.yaml`): tailnet-only via the Tailscale Kubernetes
+  operator — `type: LoadBalancer` + `loadBalancerClass: tailscale` +
+  `tailscale.com/hostname: searxng`, exactly like
+  [`apps/hermes-agent`](../hermes-agent/service.yaml). Reachable at
+  `https://searxng.tail8255cc.ts.net/` over the tailnet (MagicDNS + a
+  Tailscale-issued TLS cert), never via the public Traefik/Cloudflare path
+  ([ADR-0005](../../docs/adr/0005-public-exposure-via-cloudflare-and-floating-ip.md)).
 
 ## Required out-of-band setup
 
-1. **1Password secret** (`external-secret.yaml`): create an item named
-   `searxng-secret` (vault `Development`) with a field `secret` set to
-   `openssl rand -base64 32`. The Deployment fails closed without it.
-2. **Real hostname** (`ingress.yaml` + `deployment.yaml`): replace the
-   `searxng.example.com` placeholder with a hostname in the real
-   Cloudflare-managed zone, in *both* the Ingress `host`/`tls.hosts` and
-   `SEARXNG_BASE_URL`. They must match, or SearXNG serves broken links and the
-   cert/DNS won't converge.
+1Password secret (`external-secret.yaml`): create an item named
+`searxng-secret` (vault `Development`) with a field `secret` set to
+`openssl rand -base64 32`. The Deployment fails closed without it — the same
+pattern as `cloudflare-api-token` / `tailscale-operator-oauth`.
 
 ## Upgrading
 

@@ -36,7 +36,7 @@ An always-on daemon (single planned instance, not yet built — planning stage) 
 _Avoid_: hermes-operator, hermes-agent-helm-chart (both evaluated and rejected — the operator's community image pin is stale/broken on containerd, the chart is abandonware)
 
 **SearXNG**:
-A self-hosted metasearch engine — the cluster's first public-facing web app — deployed as plain manifests under `apps/searxng` (not a Helm chart, see [ADR-0010](docs/adr/0010-searxng-plain-manifests-not-truecharts-chart.md)). Stateless: configured entirely via env vars (`SEARXNG_SECRET` from ESO/1Password, `SEARXNG_BASE_URL`, bot-protection limiter off), so no PVC and no home-node pinning — it schedules on any schedulable node. Exposed via a Traefik `Ingress` (this repo's own `infra/traefik`), TLS from the `cloudflare` `ClusterIssuer`, DNS from external-dns, all fronted by Cloudflare per [ADR-0005](docs/adr/0005-public-exposure-via-cloudflare-and-floating-ip.md).
+A self-hosted metasearch engine deployed as plain manifests under `apps/searxng` (not a Helm chart, see [ADR-0010](docs/adr/0010-searxng-plain-manifests-not-truecharts-chart.md)). Stateless: configured entirely via env vars (`SEARXNG_SECRET` from ESO/1Password, `SEARXNG_BASE_URL`, bot-protection limiter off), so no PVC and no home-node pinning — it schedules on any schedulable node. Exposed tailnet-only via the Tailscale Kubernetes operator (`type: LoadBalancer` + `loadBalancerClass: tailscale` + `tailscale.com/hostname`, the same pattern as Hermes Agent) — not the public Traefik/Cloudflare path, since a single-user search instance shouldn't be public.
 _Avoid_: the TrueCharts `searxng` chart (rejected — drags in the TrueCharts `common` layer, hard-requires k8s ≥1.33, runs as root; see ADR-0010)
 
 **Execution backend**:

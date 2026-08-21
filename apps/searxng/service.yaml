@@ -1,12 +1,21 @@
-# ClusterIP, reached in-cluster by Traefik (infra/traefik) via the Ingress in
-# ingress.yaml. Never a LoadBalancer — public traffic enters only through the
-# Cloudflare-fronted Traefik path (ADR-0005).
+# Exposed over the tailnet by the Tailscale Kubernetes operator
+# (infra/tailscale-operator) rather than a public Traefik Ingress — a
+# personal, single-user search instance shouldn't be reachable from the
+# public internet (and would need the bot-protection limiter re-enabled +
+# Cloudflare fronting if it ever were). `type: LoadBalancer` +
+# `loadBalancerClass: tailscale` is the operator's cluster-ingress method,
+# the same pattern as apps/hermes-agent:
+# https://tailscale.com/kb/1439/kubernetes-operator-cluster-ingress
 apiVersion: v1
 kind: Service
 metadata:
   name: searxng
   namespace: searxng
+  annotations:
+    tailscale.com/hostname: searxng
 spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
   selector:
     app: searxng
   ports:
