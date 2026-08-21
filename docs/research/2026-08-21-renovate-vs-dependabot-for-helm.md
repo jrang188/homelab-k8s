@@ -94,6 +94,23 @@ Three files, all in-repo, no external service accounts:
 3. **Nothing else.** No labels, no branch protection changes required. Existing Claude
    code-review workflows will also fire on Renovate PRs — free second-opinion review.
 
+### Update-type policy (majors vs minors vs patches)
+
+Following the de-facto homelab reference (`onedr0p/home-ops` → `home-operations/renovate-presets`)
+and Renovate's own upgrade best-practices:
+
+- **Minors + patches** → grouped into the single weekly PR. Batched review of boring changes.
+- **Majors** → tracked, never ignored, but **isolated**: `separateMajorMinor` (Renovate default,
+  kept explicit via a dedicated packageRule) puts each chart major in its own immediately-opened
+  PR, labeled `major`, never automerged. Chart semver describes packaging/values-schema breaks
+  (not app risk), so each major is judged against its upstream changelog before merge.
+- **No automerge yet.** The reference configs earn automerge behind Flux health gates and test
+  harnesses; this repo has plain ArgoCD `selfHeal` with no health-gated waves. Revisit per-chart
+  (low-stakes charts first) after living with the bot for a few weeks.
+- **0.x charts** (`victoria-metrics-k8s-stack`) are pre-1.0 semver; treat their minors with
+  major-level suspicion when reviewing.
+- `minimumReleaseAge: 3 days` applies to all update types — never ride a fresh release.
+
 ### Operational notes
 
 - First run creates an **onboarding PR** ("Configure Renovate") — merge or edit it to taste.
