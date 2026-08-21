@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "America/Vancouver",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"]
+  },
+  "helmv3": {
+    "managerFilePatterns": ["/(^|/)Chart\\.ya?ml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "All Helm chart bumps in one weekly PR - one reviewable cluster change for a homelab",
+      "matchManagers": ["helmv3"],
+      "groupName": "helm charts",
+      "schedule": ["before 4am on monday"],
+      "minimumReleaseAge": "3 days",
+      "addLabels": ["dependencies", "helm"]
+    }
+  ]
+}
