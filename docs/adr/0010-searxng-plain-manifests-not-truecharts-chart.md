@@ -32,8 +32,11 @@ Facts verified directly against the TrueCharts chart (`Chart.yaml` /
   than this cluster's k3s control planes / home node are known to track, and
   a real install blocker risk.
 - It runs the container as `runAsUser: 0` (root) with `SETUID`/`SETGID`
-  capabilities, versus the official image's non-root `searxng` user (uid 977)
-  — a security downgrade antithetical to ADR-0003's defense-in-depth stance.
+  capabilities — a security downgrade antithetical to ADR-0003's
+  defense-in-depth stance. The official image starts as root (`USER` unset)
+  but is built to run the app as the non-root `searxng` user (uid 977, which
+  its files are owned by); we opt into that via `runAsUser: 977`, TrueCharts
+  instead runs as root.
 - It pins `appVersion: latest` (a digest-pinned `latest` tag) — a moving
   target, where ADR-0001 deliberately chose a current, explicitly-chosen tag.
 

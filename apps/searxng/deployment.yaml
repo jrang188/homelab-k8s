@@ -23,10 +23,15 @@ spec:
         app: searxng
     spec:
       securityContext:
-        # The official image runs as the non-root `searxng` user (uid 977) —
-        # this asserts it rather than overriding it, and would fail loudly if
-        # a future tag regressed to root (unlike the TrueCharts chart, which
-        # forces runAsUser: 0 + SETUID/SETGID — see ADR-0010).
+        # The image's Dockerfile leaves USER unset, so it starts as root by
+        # default — but it's built to run the app as the non-root `searxng`
+        # user (uid 977, which all the app files are chowned to); the
+        # entrypoint's only root-only step (update-ca-certificates) is skipped
+        # gracefully when non-root. Force that: runAsUser/runAsGroup 977 make
+        # the container genuinely non-root and satisfy runAsNonRoot — the
+        # security win over TrueCharts' runAsUser: 0 (ADR-0010).
+        runAsUser: 977
+        runAsGroup: 977
         runAsNonRoot: true
       # Home-node-only, per operator review: the home node is the only node
       # with the RAM/CPU for a search workload, while the control planes are
@@ -49,7 +54,7 @@ spec:
             # Container-level hardening, per review — ADR-0010 argues against
             # TrueCharts' root + SETUID/SETGID, so back that up at the
             # container level: no privilege escalation, no capabilities (the
-            # image runs as non-root uid 977 and needs neither). 
+            # app runs as non-root uid 977 via runAsUser and needs neither). 
             # readOnlyRootFilesystem is left at its default (false): the image
             # writes its image-proxy cache to /var/cache/searxng, so RO-root
             # would need an emptyDir mounted there first (deferred — see PR
