@@ -1,0 +1,33 @@
+# SearXNG settings. The image's entrypoint normally generates settings.yml
+# from a template on first boot (which leaves search.formats = [html] only);
+# Hermes' web search provider calls /search?format=json, so the JSON format
+# MUST be enabled or it gets a 403. Mounted over the template-generated file.
+#
+# use_default_settings: true keeps upstream defaults and only applies the
+# overrides below (format + disabling engines that hard-fail to load).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-settings
+  namespace: searxng
+  labels:
+    app: searxng
+data:
+  settings.yml: |
+    use_default_settings: true
+
+    search:
+      # Hermes web_search provider requires JSON output (see provider.py:
+      # /search?format=json). Default template is html-only -> 403.
+      formats:
+        - html
+        - json
+
+    engines:
+      # Hard-fail to load in the minimal container image -> noisy ERROR logs.
+      # torch needs the torch package; ahmia is a Tor-only hidden-service
+      # engine. Neither is useful on a private single-user instance.
+      - name: torch
+        disabled: true
+      - name: ahmia
+        disabled: true
