@@ -86,6 +86,12 @@ spec:
             # default change can't leave the Service unreachable.
             - name: SEARXNG_BIND_ADDRESS
               value: "0.0.0.0"
+          volumeMounts:
+            # Overrides the entrypoint-generated settings.yml so the JSON
+            # search format (required by Hermes' web_search provider) is on.
+            - name: settings
+              mountPath: /etc/searxng/settings.yml
+              subPath: settings.yml
           ports:
             - name: http
               containerPort: 8080
@@ -109,3 +115,7 @@ spec:
             limits:
               cpu: "1"
               memory: 512Mi
+      volumes:
+        - name: settings
+          configMap:
+            name: searxng-settings
