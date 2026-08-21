@@ -1,0 +1,38 @@
+name: Renovate
+# Self-hosted Renovate: bumps upstream chart pins in Chart.yaml and regenerates
+# Chart.lock via `helm dependency update` (the official container image ships helm).
+# Rationale: docs/research/2026-08-21-renovate-vs-dependabot-for-helm.md
+
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly; Renovate rate-limits itself, this is just the tick
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: false
+        default: 'info'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/renovatebot/renovate:44.38.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Renovate
+        run: renovate
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          RENOVATE_REPOSITORIES: 'jrang188/homelab-k8s'
+          RENOVATE_PLATFORM: github
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
