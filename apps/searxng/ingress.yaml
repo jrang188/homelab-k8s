@@ -1,0 +1,31 @@
+# Public exposure per ADR-0005: Traefik (this repo's own ingress controller)
+# -> Cloudflare DNS-01 cert via the `cloudflare` ClusterIssuer -> DNS record
+# managed by external-dns (pinned to the Floating IP by its --default-targets).
+#
+# NOTE: `searxng.example.com` is a PLACEHOLDER — replace it with a hostname in
+# the real Cloudflare-managed zone (and keep deployment.yaml's SEARXNG_BASE_URL
+# in lockstep with it) before this Application will issue a cert / resolve.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: searxng
+  namespace: searxng
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: searxng.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: searxng
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - searxng.example.com
+      secretName: searxng-tls

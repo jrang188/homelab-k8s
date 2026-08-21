@@ -1,0 +1,77 @@
+# SearXNG — plain manifests, per ADR-0010. A single stateless container:
+# configured entirely via env vars (the image's settings.yml already sets
+# `use_default_settings: true`), so no ConfigMap and no PVC. It may schedule
+# on any schedulable node (control planes included) since it carries no
+# state; the image-proxy cache in /var/cache/searxng is ephemeral.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: searxng
+  labels:
+    app: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      securityContext:
+        # The official image runs as the non-root `searxng` user (uid 977) —
+        # this asserts it rather than overriding it, and would fail loudly if
+        # a future tag regressed to root (unlike the TrueCharts chart, which
+        # forces runAsUser: 0 + SETUID/SETGID — see ADR-0010).
+        runAsNonRoot: true
+      containers:
+        - name: searxng
+          image: searxng/searxng:2026.8.20-487d7a96e
+          imagePullPolicy: IfNotPresent
+          env:
+            # secret_key — required (no safe default). From 1Password via ESO,
+            # see external-secret.yaml. Generate with `openssl rand -base64 32`.
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: searxng-secret
+                  key: SEARXNG_SECRET
+            # Public URL — MUST match the Ingress host (ingress.yaml) or
+            # SearXNG generates broken links/sessions behind the proxy.
+            - name: SEARXNG_BASE_URL
+              value: "https://searxng.example.com/"
+            # Single-user instance fronted by Cloudflare (ADR-0005): bot/rate
+            # limiting is redundant, and disabling it removes the Valkey
+            # dependency. Re-enable + add Valkey (SEARXNG_VALKEY_URL) if it
+            # ever becomes multi-user.
+            - name: SEARXNG_LIMITER
+              value: "false"
+            # The image listens on 0.0.0.0:8080; set explicitly so a future
+            # default change can't leave the Service unreachable.
+            - name: SEARXNG_BIND_ADDRESS
+              value: "0.0.0.0"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
