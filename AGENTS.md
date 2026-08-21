@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A GitOps repo for a home Kubernetes cluster, reconciled by ArgoCD. There is no build, lint, or test pipeline (no CI, no Makefile) — the only "verification" is validating the Helm/YAML locally and letting ArgoCD sync it.
+A GitOps repo for a home Kubernetes cluster, reconciled by ArgoCD. No Makefile, no build/deploy pipeline. CI runs `scripts/render.sh` on every PR — see below — which renders/lints every `infra/*` and `apps/*` module; there is no further pipeline beyond that, and ArgoCD's own sync is the only "deploy."
 
 ## Repo layout and sync flow
 
@@ -28,7 +28,13 @@ Most `infra/*` and some `apps/*` directories are thin wrapper charts: a local `C
 - Chart-local Kubernetes resources live under `<dir>/templates/`.
 - Not every directory is a Helm chart: plain Kubernetes manifests are applied directly by ArgoCD (Deployment/Service/Ingress, no `Chart.yaml` — see `docs/adr/0001-plain-manifests-not-operator-or-chart.md`).
 
-To render/validate a chart locally before committing:
+To render/validate every `infra/*` and `apps/*` module before committing, run:
+```
+./scripts/render.sh
+```
+This is the same check CI runs on every PR (`.github/workflows/render.yml`) — see [ADR-0010](docs/adr/0010-render-script-in-ci.md). It walks each directory, `Chart.yaml` present or not, and reports every failure in one pass rather than stopping at the first.
+
+To debug a single directory by hand:
 ```
 helm dependency update <dir>     # e.g. infra/traefik
 helm template <dir> -f <dir>/values.yaml
