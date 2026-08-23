@@ -231,6 +231,23 @@ victoria-metrics-k8s-stack:
               send_resolved: true
         - name: blackhole
 
+  # The chart's sync-job (post-install/post-upgrade hook Job) generates the
+  # defaultRules VMRules and defaultDashboards ConfigMaps directly in-cluster
+  # at deploy time — they exist only in the cluster, never in git. ArgoCD
+  # walks the app's resource tree by the app instance label, adopts these
+  # generated resources as "extra" ones, and with autosync disabled there is
+  # no prune to reconcile them away: the victoria-metrics Application sat
+  # OutOfSync forever, which is what the ArgoCDAppOutOfSync Discord alert
+  # was firing about. compare-options: IgnoreExtraneous tells ArgoCD these
+  # extras are expected and excludes them from the diff; annotate-options
+  # stops ArgoCD from stripping its own annotation on subsequent syncs.
+  # (Alternative considered: stop generating them entirely — rejected, that
+  # would lose the upstream alert/dashboard coverage this stack provides.)
+  defaultDashboards:
+    annotations:
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/annotate-options: managed-by-argocd
+
   # defaultRules ships upstream kube-prometheus-stack-style alert groups for
   # components this cluster doesn't run as scrapeable targets (see
   # kubeEtcd/kubeScheduler/kubeControllerManager above — k3s runs these
@@ -238,7 +255,14 @@ victoria-metrics-k8s-stack:
   # Left enabled, these groups' alerts would key off metrics that never
   # exist and — now that vmalert/alertmanager actually notify — fire
   # permanently-unresolved false positives straight to Discord.
+  #
+  # The annotations here ride along onto every sync-job-generated VMRule
+  # (see the defaultDashboards note above for why IgnoreExtraneous is
+  # needed).
   defaultRules:
+    annotations:
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/annotate-options: managed-by-argocd
     groups:
       etcd:
         enabled: false
@@ -273,6 +297,15 @@ victoria-metrics-k8s-stack:
       KubeCPUOvercommit:
         enabled: false
       KubeMemoryOvercommit:
+        enabled: false
+      # The home agent node (k3s-agent-hml, NixOS) intentionally tracks the
+      # nixpkgs k3s channel one minor behind the Hetzner control planes'
+      # unattended upgrades — 3x v1.36.x vs 1x v1.35.x as of Aug 2026. That's
+      # well inside kubelet's supported version-skew window (one minor older
+      # than the API server), so this alert is a permanent false positive by
+      # design; disabling it rather than "fixing" it preserves the intended
+      # upgrade lag.
+      KubeVersionMismatch:
         enabled: false
 
   vmsingle:
