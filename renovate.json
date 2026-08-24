@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "America/Vancouver",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"]
+  },
+  "helmv3": {
+    "managerFilePatterns": ["/(^|/)Chart\\.ya?ml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Minor+patch chart bumps: one grouped weekly PR - batch the boring changes into a single review",
+      "matchManagers": ["helmv3"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "helm charts",
+      "schedule": ["before 4am on monday"],
+      "minimumReleaseAge": "3 days",
+      "addLabels": ["dependencies", "helm"]
+    },
+    {
+      "description": "Chart majors stay isolated: one PR per chart, opened immediately (no weekly batching), always human-reviewed, never automerged. Chart semver marks packaging/values-schema breaks, not app risk - judge each against its upstream changelog.",
+      "matchManagers": ["helmv3"],
+      "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": "3 days",
+      "addLabels": ["dependencies", "helm", "major"]
+    }
+  ]
+}
