@@ -1,7 +1,14 @@
 name: Renovate
-# Self-hosted Renovate: bumps upstream chart pins in Chart.yaml and regenerates
-# Chart.lock via `helm dependency update` (the official container image ships helm).
+# Self-hosted Renovate via the official github-action: bumps upstream chart pins in
+# Chart.yaml and regenerates Chart.lock via `helm dependency update` (the action's
+# container ships helm).
 # Rationale: docs/research/2026-08-21-renovate-vs-dependabot-for-helm.md
+#
+# NOTE: the previous version put `container: renovatebot/renovate` at the job level and
+# ran actions/checkout *inside* that non-root container, which crashed with
+# EACCES on /__w/_temp/_runner_file_commands and never ran Renovate (0 green runs).
+# The official action checks out on the host runner (root) and launches renovate's
+# container itself, so checkout works and Renovate gets the repo.
 
 on:
   schedule:
@@ -14,7 +21,8 @@ on:
         default: 'info'
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: renovate
@@ -23,16 +31,13 @@ concurrency:
 jobs:
   renovate:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/renovatebot/renovate:44.38.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Renovate
-        run: renovate
+        uses: renovatebot/github-action@v46.2.4
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
         env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-          RENOVATE_REPOSITORIES: 'jrang188/homelab-k8s'
-          RENOVATE_PLATFORM: github
           LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
