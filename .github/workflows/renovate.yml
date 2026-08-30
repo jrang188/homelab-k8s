@@ -20,9 +20,11 @@ on:
         required: false
         default: 'info'
 
+# Least-privilege for the default GITHUB_TOKEN: only actions/checkout uses it,
+# and it needs read-only. Renovate authenticates via secrets.RENOVATE_TOKEN
+# (NOT GITHUB_TOKEN) to open PRs, so this job never needs GITHUB_TOKEN write.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: renovate
