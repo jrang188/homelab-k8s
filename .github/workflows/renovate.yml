@@ -42,4 +42,8 @@ jobs:
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
         env:
+          # The github-action does NOT auto-discover the target repo; without
+          # RENOVATE_REPOSITORIES Renovate exits 0 having updated nothing.
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: '["jrang188/homelab-k8s"]'
           LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
