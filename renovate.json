@@ -11,6 +11,9 @@
   "helmv3": {
     "managerFilePatterns": ["/(^|/)Chart\\.ya?ml$/"]
   },
+  "kubernetes": {
+    "managerFilePatterns": ["/apps\\/.+\\.ya?ml$/"]
+  },
   "packageRules": [
     {
       "description": "Minor+patch chart bumps: one grouped weekly PR - batch the boring changes into a single review",
@@ -27,6 +30,22 @@
       "matchUpdateTypes": ["major"],
       "minimumReleaseAge": "3 days",
       "addLabels": ["dependencies", "helm", "major"]
+    },
+    {
+      "description": "Container image bumps across app manifests (apps/*.yaml): one grouped weekly PR so you can review the docker tag changes in a single diff. No automerge.",
+      "matchManagers": ["kubernetes"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "container images",
+      "schedule": ["before 4am on monday"],
+      "minimumReleaseAge": "3 days",
+      "addLabels": ["dependencies", "docker"]
+    },
+    {
+      "description": "Container image majors stay isolated and labeled: human-reviewed, never automerged. Note: hermes-agent uses date-style tags (v2026.8.18) that Renovate may bucket as 'major' since they aren't semver - that's expected.",
+      "matchManagers": ["kubernetes"],
+      "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": "3 days",
+      "addLabels": ["dependencies", "docker", "major"]
     }
   ]
 }
