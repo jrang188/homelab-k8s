@@ -1,0 +1,32 @@
+# Serves the Hermes teach workspace over the tailnet at teach.tail8255cc.ts.net
+# (MagicDNS name derived from the tailscale.com/hostname annotation).
+#
+# The lesson HTML lives on the existing hermes-agent PVC (/opt/data/teach), so
+# there is deliberately NO new pod: this Service targets the same hermes-agent
+# pod (selector app: hermes-agent) that already mounts that volume and runs a
+# tiny http.server on containerPort 8090. Same exposure method as the dashboard
+# Service in this dir and apps/searxng — type: LoadBalancer +
+# loadBalancerClass: tailscale (infra/tailscale-operator), never a public
+# Traefik Ingress. https://tailscale.com/kb/1439/kubernetes-operator-cluster-ingress
+#
+# NOTE (2026-09-04): the 8090 http.server is MVP-only — launched manually inside
+# the pod (python3 -m http.server), not supervised by the image's s6 init, so it
+# will NOT survive a pod restart. Accepted per BACKLOG item 3 (refactor to a
+# dedicated static pod + PVC once it impacts performance/storage or semantic
+# separation). Rebinding 8090 after a redeploy is a one-liner.
+apiVersion: v1
+kind: Service
+metadata:
+  name: teach-static
+  namespace: hermes-agent
+  annotations:
+    tailscale.com/hostname: teach
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: hermes-agent
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8090
