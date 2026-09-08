@@ -22,6 +22,17 @@ data:
           # Tor hidden-service engine; useless without Tor connectivity
           - ahmia
 
+    engines:
+      # Extra general-web engines to widen fan-out (Tier 2 resilience):
+      # the default engines (brave, duckduckgo, google cse, startpage) can be
+      # IP-flagged by anti-bot, leaving the instance returning zero results;
+      # more engines means a partial block degrades results instead of killing
+      # search entirely.
+      - name: bing
+      - name: yahoo
+      - name: qwant
+      - name: mojeek
+
     search:
       # Hermes web_search provider requires JSON output (see provider.py:
       # /search?format=json). Default template is html-only -> 403.
