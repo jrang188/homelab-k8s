@@ -21,11 +21,12 @@ the workload as root. See ADR-0010 for the full comparison.
   No PVC and no ConfigMap, but pinned to the home node
   ([ADR-0002](../../docs/adr/0002-home-node-pinning-and-scoped-storage.md)
   pattern) for its RAM/CPU headroom.
-- **Bot-protection limiter off** (`SEARXNG_LIMITER=false`): a single-user
-  instance reachable only on the tailnet already has access control at the
-  network layer, so SearXNG's Redis/Valkey rate limiter isn't needed. If it
-  ever goes multi-user or public, add a Valkey deployment and set
-  `SEARXNG_VALKEY_URL`.
+- **Instance-level rate limiter on** (`SEARXNG_LIMITER=true`): throttles
+  inbound search bursts so a parallel-automation spike can't trip all
+  upstream engines' anti-bot and IP-flag the instance (see #53). Backed by
+  the ephemeral in-namespace `valkey` Deployment it connects to via
+  `SEARXNG_VALKEY_URL` (`valkey-deployment.yaml`/`valkey-service.yaml`).
+  Tailnet-only exposure remains the network-layer access control.
 - **Exposure** (`service.yaml`): tailnet-only via the Tailscale Kubernetes
   operator — `type: LoadBalancer` + `loadBalancerClass: tailscale` +
   `tailscale.com/hostname: searxng`, exactly like

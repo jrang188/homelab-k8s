@@ -81,12 +81,15 @@ spec:
             # SearXNG generates broken links/sessions behind the proxy.
             - name: SEARXNG_BASE_URL
               value: "https://searxng.tail8255cc.ts.net/"
-            # Single-user instance reachable only on the tailnet: bot/rate
-            # limiting is redundant, and disabling it removes the Valkey
-            # dependency. Re-enable + add Valkey (SEARXNG_VALKEY_URL) if it
-            # ever becomes multi-user or public.
+            # Instance-level rate limiting: throttle inbound search bursts so
+            # a parallel-automation spike can't trip all upstream engines'
+            # anti-bot and IP-flag the instance (see #53). Requires the
+            # in-namespace Valkey Deployment it connects to via
+            # SEARXNG_VALKEY_URL.
             - name: SEARXNG_LIMITER
-              value: "false"
+              value: "true"
+            - name: SEARXNG_VALKEY_URL
+              value: "valkey://valkey.searxng.svc.cluster.local:6379/0"
             # The image listens on 0.0.0.0:8080; set explicitly so a future
             # default change can't leave the Service unreachable.
             - name: SEARXNG_BIND_ADDRESS
