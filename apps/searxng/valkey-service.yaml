@@ -6,6 +6,8 @@ kind: Service
 metadata:
   name: valkey
   namespace: searxng
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app: valkey
 spec:

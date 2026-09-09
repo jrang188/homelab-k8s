@@ -12,6 +12,7 @@ metadata:
   name: searxng
   namespace: searxng
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     tailscale.com/hostname: searxng
 spec:
   type: LoadBalancer

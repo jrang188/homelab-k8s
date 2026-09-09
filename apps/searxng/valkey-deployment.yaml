@@ -17,6 +17,12 @@ kind: Deployment
 metadata:
   name: valkey
   namespace: searxng
+  # Sync-wave 0: ArgoCD stands Valkey up and waits for it to be Ready before
+  # the searxng Deployment (wave 1), so its limiter always inits with the
+  # store available (SearXNG disables the limiter permanently if Valkey is
+  # unreachable at process startup).
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app: valkey
 spec:
