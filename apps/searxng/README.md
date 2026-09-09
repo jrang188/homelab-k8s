@@ -15,12 +15,21 @@ the workload as root. See ADR-0010 for the full comparison.
 
 ## Shape
 
-- **Stateless** (`deployment.yaml`): a single non-root container configured
-  entirely via env vars — the image's default `settings.yml` already sets
-  `use_default_settings: true`, so `SEARXNG_*` env vars are all that's needed.
-  No PVC and no ConfigMap, but pinned to the home node
+- **Stateless** (`deployment.yaml`): a single non-root container, configured
+  via env vars plus a `settings.yml` override (`settings-configmap.yaml`) for
+  the handful of settings with no env-var equivalent (engine list, JSON
+  format, safesearch, metrics). No PVC — pinned to the home node
   ([ADR-0002](../../docs/adr/0002-home-node-pinning-and-scoped-storage.md)
   pattern) for its RAM/CPU headroom.
+- **Metrics** (`vmservicescrape.yaml`): SearXNG's Prometheus/OpenMetrics
+  endpoint (`general.open_metrics` in `settings-configmap.yaml`) scraped into
+  the cluster's existing VictoriaMetrics stack. The Basic Auth password comes
+  from ESO/1Password like `SEARXNG_SECRET`, but `open_metrics` has no
+  env-var override — so a `render-settings` initContainer
+  (`deployment.yaml`) substitutes it into the ConfigMap-mounted
+  `settings.yml` template at pod start, writing the result to an `emptyDir`
+  the main container mounts instead. The ConfigMap itself never holds the
+  real password.
 - **No instance-level rate limiter**: tried `SEARXNG_LIMITER=true` + an
   in-namespace Valkey (#53) to stop in-cluster automation bursts from
   tripping upstream engines' anti-bot, but its botdetection unconditionally
@@ -43,9 +52,30 @@ the workload as root. See ADR-0010 for the full comparison.
 ## Required out-of-band setup
 
 1Password secret (`external-secret.yaml`): create an item named
-`searxng-secret` (vault `Development`) with a field `secret` set to
-`openssl rand -base64 32`. The Deployment fails closed without it — the same
-pattern as `cloudflare-api-token` / `tailscale-operator-oauth`.
+`searxng-secret` (vault `Development`) with two fields:
+- `secret` — `openssl rand -base64 32`, consumed as `SEARXNG_SECRET`.
+- `open-metrics-password` — `openssl rand -hex 24`, consumed as
+  `OPEN_METRICS_PASSWORD` (the `/metrics` Basic Auth password; the username
+  half is unchecked by SearXNG, so one field covers both).
+
+The Deployment fails closed without both — same pattern as
+`cloudflare-api-token` / `tailscale-operator-oauth`.
+
+## Checking engine health
+
+No dashboard is provisioned for this (a single-user instance doesn't warrant
+one) — check ad hoc via VictoriaLogs, once metrics are flowing:
+
+```logsql
+{kubernetes.pod_namespace="searxng"} "SearxEngine"
+```
+
+(matches the `SearxEngineCaptchaException` / `SearxEngineTooManyRequestsException` /
+`SearxEngineAccessDeniedException` family — what actually shows up in pod logs
+when an engine gets blocked; `unresponsive_engines` itself is a JSON response
+field, not something logged). Or hit `/stats/errors` on the instance directly
+(tailnet: `https://searxng.tail8255cc.ts.net/stats/errors`) for the current
+live view of which engines are suspended and why.
 
 ## Upgrading
 

@@ -63,6 +63,50 @@ spec:
           operator: Equal
           value: "true"
           effect: NoSchedule
+      # settings.yml has no env-var override for general.open_metrics (see
+      # settings-configmap.yaml), so the ESO-sourced password can't reach it
+      # via the container's env like SEARXNG_SECRET does. This initContainer
+      # substitutes the __OPEN_METRICS_PASSWORD__ placeholder in the
+      # ConfigMap-mounted template and writes the result to an emptyDir,
+      # which the main container then mounts instead of the ConfigMap
+      # directly — the ConfigMap itself never holds the real password.
+      # busybox:1.36 pinned per ADR-0001; already cached on the home node
+      # (local-path-provisioner's helper-pod uses the same image).
+      initContainers:
+        - name: render-settings
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - sed "s/__OPEN_METRICS_PASSWORD__/$OPEN_METRICS_PASSWORD/" /template/settings.yml > /rendered/settings.yml
+          env:
+            - name: OPEN_METRICS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: searxng-secret
+                  key: OPEN_METRICS_PASSWORD
+          securityContext:
+            runAsUser: 65534
+            runAsGroup: 65534
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: settings-template
+              mountPath: /template
+              readOnly: true
+            - name: settings-rendered
+              mountPath: /rendered
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: searxng
           image: searxng/searxng:2026.8.20-487d7a96e
@@ -98,9 +142,11 @@ spec:
             - name: SEARXNG_BIND_ADDRESS
               value: "0.0.0.0"
           volumeMounts:
-            # Overrides the entrypoint-generated settings.yml so the JSON
-            # search format (required by Hermes' web_search provider) is on.
-            - name: settings
+            # Overrides the entrypoint-generated settings.yml (JSON format,
+            # engine list, safesearch, metrics auth). Mounts the render-
+            # settings initContainer's output, not the ConfigMap directly —
+            # see that initContainer's comment for why.
+            - name: settings-rendered
               mountPath: /etc/searxng/settings.yml
               subPath: settings.yml
           ports:
@@ -127,6 +173,8 @@ spec:
               cpu: "1"
               memory: 512Mi
       volumes:
-        - name: settings
+        - name: settings-template
           configMap:
             name: searxng-settings
+        - name: settings-rendered
+          emptyDir: {}

@@ -32,6 +32,15 @@ data:
       - name: yahoo
       - name: qwant
       - name: mojeek
+      # Plain `google` (distinct from the `google cse` default, which scrapes
+      # Google's embeddable Custom Search widget rather than google.com
+      # directly) — disabled: true upstream, so it needs an explicit override
+      # to activate. Community reliability data (searx.space, 42 instances)
+      # puts its median error rate at 10% vs. google cse's 75% — see
+      # docs/research/2026-09-08-searxng-community-engine-reliability.md.
+      # Running both gives two independent paths to Google results.
+      - name: google
+        disabled: false
 
     search:
       # Hermes web_search provider requires JSON output (see provider.py:
@@ -39,3 +48,25 @@ data:
       formats:
         - html
         - json
+      # Explicit rather than inherited from upstream's default (currently 0 =
+      # off): this is a research backend for an agent as much as a human, so
+      # an upstream default change shouldn't silently start filtering results
+      # nobody asked to have filtered. 0 = off, 1 = moderate, 2 = strict.
+      safesearch: 0
+
+    general:
+      # Exposes Prometheus/OpenMetrics-format stats at /metrics, HTTP Basic
+      # Auth gated (only the password is checked; username can be anything —
+      # see docs.searxng.org/admin/settings/settings_general.html). Scraped
+      # in-cluster only by the VMServiceScrape in vmservicescrape.yaml, which
+      # targets the ClusterIP Service — never the tailnet-exposed path.
+      #
+      # There's no SEARXNG_OPEN_METRICS env-var override for this field
+      # (checked against upstream settings.yml's documented `Is overwritten
+      # by` list — only debug/port/bind_address/base_url/limiter/
+      # public_instance/secret/image_proxy/method/valkey_url get one), so
+      # the placeholder below is substituted with the real ESO/1Password
+      # value by deployment.yaml's render-settings initContainer before the
+      # main container ever reads this file — this ConfigMap itself never
+      # holds the real password.
+      open_metrics: "__OPEN_METRICS_PASSWORD__"

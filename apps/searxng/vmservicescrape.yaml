@@ -1,0 +1,30 @@
+# Scrapes SearXNG's /metrics endpoint (general.open_metrics in
+# settings-configmap.yaml, rendered from OPEN_METRICS_PASSWORD by
+# deployment.yaml's render-settings initContainer) into the cluster's
+# existing VictoriaMetrics stack. Targets the `searxng` Service's ClusterIP —
+# this scrape never leaves the cluster network, unlike the tailnet-exposed
+# LoadBalancer path.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: searxng
+  namespace: searxng
+  labels:
+    app: searxng
+spec:
+  selector:
+    matchLabels:
+      app: searxng
+  endpoints:
+    - port: http
+      path: /metrics
+      basicAuth:
+        # SearXNG only validates the password (see settings-configmap.yaml);
+        # both fields point at the same ESO-sourced key since the username
+        # is unchecked and not worth a second 1Password field.
+        username:
+          name: searxng-secret
+          key: OPEN_METRICS_PASSWORD
+        password:
+          name: searxng-secret
+          key: OPEN_METRICS_PASSWORD
