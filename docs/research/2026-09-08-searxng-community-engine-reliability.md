@@ -1,9 +1,21 @@
 # What the SearXNG community actually runs — engine reliability, by the numbers
 
 **Date:** 2026-09-08
-**Status:** Recommendation (not yet implemented)
+**Status:** Recommendation — **corrected 2026-09-09, see note below**
 **Scope:** Which general-web engines are worth enabling in `apps/searxng`, based on real aggregate
 reliability data across the whole public SearXNG instance community — not opinion or forum anecdote.
+
+> **2026-09-09 correction:** this doc's reliability numbers came from SearXNG's GitHub `master`
+> and searx.space's public-instance data, both checked independently of this deployment's actual
+> pinned image (`searxng/searxng:2026.8.20-487d7a96e`). Verified directly against the running
+> container afterward: (1) this image's engine registry has **no plain `google` entry at all** —
+> master has since added one this tag predates — so the "enable plain `google`" recommendation
+> below is void; `google cse` is the only Google path this image has. (2) The
+> `- name: bing` (etc.) form recommended implicitly by this doc's phrasing is **not sufficient**
+> to enable a `disabled: true` default engine — it needs an explicit `disabled: false`, or it
+> silently inherits the default's `disabled: true`. Both are fixed in
+> `apps/searxng/settings-configmap.yaml`; the reliability comparisons themselves (searx.space
+> data) are unaffected and still the basis for which engines are worth enabling.
 
 ## Method
 

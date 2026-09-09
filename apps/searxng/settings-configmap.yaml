@@ -28,19 +28,30 @@ data:
       # IP-flagged by anti-bot, leaving the instance returning zero results;
       # more engines means a partial block degrades results instead of killing
       # search entirely.
+      #
+      # `disabled: false` is required, not decorative: these are `disabled:
+      # true` in this image's base settings.yml, and a bare `- name: bing`
+      # with no `disabled` key merges onto that default entry and *inherits*
+      # disabled: true rather than resetting it. Confirmed live (2026-09-09)
+      # that every entry here had been a silent no-op since #53 — /config
+      # showed enabled: False for all four, and live pod logs showed zero
+      # query attempts against them while duckduckgo/startpage/brave (the
+      # actually-enabled defaults) were visibly getting hit.
       - name: bing
-      - name: yahoo
-      - name: qwant
-      - name: mojeek
-      # Plain `google` (distinct from the `google cse` default, which scrapes
-      # Google's embeddable Custom Search widget rather than google.com
-      # directly) — disabled: true upstream, so it needs an explicit override
-      # to activate. Community reliability data (searx.space, 42 instances)
-      # puts its median error rate at 10% vs. google cse's 75% — see
-      # docs/research/2026-09-08-searxng-community-engine-reliability.md.
-      # Running both gives two independent paths to Google results.
-      - name: google
         disabled: false
+      - name: yahoo
+        disabled: false
+      - name: qwant
+        disabled: false
+      - name: mojeek
+        disabled: false
+      # No plain `google` entry: confirmed against the running container
+      # (not just upstream's GitHub master, which has since added one this
+      # pinned image tag predates) that this build's engine registry has no
+      # `google` entry at all — only google cse/news/scholar/play. `!go`
+      # doesn't restrict a search the way a real shortcut does; it silently
+      # falls through to the default set. google cse is the only Google path
+      # this image has.
 
     search:
       # Hermes web_search provider requires JSON output (see provider.py:
