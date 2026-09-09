@@ -1,0 +1,33 @@
+# Tailnet-only exposure via the Tailscale Kubernetes operator
+# (infra/tailscale-operator), the same pattern as apps/searxng/service.yaml
+# and apps/hermes-agent/service.yaml. Authentik must NOT be reachable from the
+# public internet (it is the IdP for the tailnet), so we deliberately do not
+# use the public Traefik/Cloudflare path — see
+# https://tailscale.com/kb/1439/kubernetes-operator-cluster-ingress.
+#
+# The upstream chart's own Service template has no `loadBalancerClass` key, so
+# rather than fight it we leave the chart's ClusterIP service (used for
+# in-cluster DNS) in place and add this LoadBalancer service targeting the
+# same server pods. `type: LoadBalancer` + `loadBalancerClass: tailscale` is
+# the operator's cluster-ingress method.
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik
+  namespace: authentik
+  annotations:
+    tailscale.com/hostname: authentik
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app.kubernetes.io/name: authentik
+    app.kubernetes.io/instance: authentik
+    app.kubernetes.io/component: server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9000
+    - name: https
+      port: 443
+      targetPort: 9443
