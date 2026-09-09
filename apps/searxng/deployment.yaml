@@ -10,13 +10,16 @@ kind: Deployment
 metadata:
   name: searxng
   namespace: searxng
-  labels:
-    app: searxng
+  # Sync after Valkey (sync-wave 0) so the limiter never inits against a
+  # not-yet-ready store on fresh syncs (see app/searxng for limiter).
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     # Roll the pod automatically when the settings ConfigMap changes —
     # subPath mounts never hot-update in the container, so without this a
     # settings edit needs a manual `kubectl rollout restart` to take effect.
     reloader.stakater.com/auto: "true"
+  labels:
+    app: searxng
 spec:
   replicas: 1
   selector:
