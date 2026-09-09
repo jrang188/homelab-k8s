@@ -1,19 +1,28 @@
 # SearXNG — plain manifests, per ADR-0010. A single stateless container:
 # configured entirely via env vars (the image's settings.yml already sets
-# `use_default_settings: true`), so no ConfigMap and no PVC; the image-proxy
-# cache in /var/cache/searxng is ephemeral. Pinned to the home node — the
-# only node with the RAM/CPU headroom for a search workload (per operator
-# review); ADR-0002's scheduling pattern, applied for resources rather than
-# storage.
+# `use_default_settings: true`), so no PVC; the image-proxy cache in
+# /var/cache/searxng is ephemeral. Pinned to the home node — the only node
+# with the RAM/CPU headroom for a search workload (per operator review);
+# ADR-0002's scheduling pattern, applied for resources rather than storage.
+#
+# No instance-level rate limiter (SEARXNG_LIMITER unset/false, no Valkey):
+# tried it (#53) to stop in-cluster automation bursts from tripping upstream
+# engines' anti-bot, but the limiter's own botdetection unconditionally 429s
+# any non-browser User-Agent — including Hermes, the only automated caller
+# this instance has — regardless of request rate. The one client the limiter
+# would ever need to throttle has to be exempted for the instance to work at
+# all, which leaves it protecting against traffic that doesn't exist here
+# (tailnet-only, no public exposure). Removed rather than carrying a Valkey
+# Deployment for zero practical benefit. Bursts are mitigated instead by
+# Tier-2 engine breadth (bing/yahoo/qwant/mojeek alongside the defaults, see
+# settings-configmap.yaml) so a partial engine block degrades results instead
+# of zeroing them, and by pacing fixes on the caller side (Hermes).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: searxng
   namespace: searxng
-  # Sync after Valkey (sync-wave 0) so the limiter never inits against a
-  # not-yet-ready store on fresh syncs (see app/searxng for limiter).
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
     # Roll the pod automatically when the settings ConfigMap changes —
     # subPath mounts never hot-update in the container, so without this a
     # settings edit needs a manual `kubectl rollout restart` to take effect.
@@ -84,15 +93,6 @@ spec:
             # SearXNG generates broken links/sessions behind the proxy.
             - name: SEARXNG_BASE_URL
               value: "https://searxng.tail8255cc.ts.net/"
-            # Instance-level rate limiting: throttle inbound search bursts so
-            # a parallel-automation spike can't trip all upstream engines'
-            # anti-bot and IP-flag the instance (see #53). Requires the
-            # in-namespace Valkey Deployment it connects to via
-            # SEARXNG_VALKEY_URL.
-            - name: SEARXNG_LIMITER
-              value: "true"
-            - name: SEARXNG_VALKEY_URL
-              value: "valkey://valkey.searxng.svc.cluster.local:6379/0"
             # The image listens on 0.0.0.0:8080; set explicitly so a future
             # default change can't leave the Service unreachable.
             - name: SEARXNG_BIND_ADDRESS

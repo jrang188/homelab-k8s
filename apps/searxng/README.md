@@ -21,12 +21,17 @@ the workload as root. See ADR-0010 for the full comparison.
   No PVC and no ConfigMap, but pinned to the home node
   ([ADR-0002](../../docs/adr/0002-home-node-pinning-and-scoped-storage.md)
   pattern) for its RAM/CPU headroom.
-- **Instance-level rate limiter on** (`SEARXNG_LIMITER=true`): throttles
-  inbound search bursts so a parallel-automation spike can't trip all
-  upstream engines' anti-bot and IP-flag the instance (see #53). Backed by
-  the ephemeral in-namespace `valkey` Deployment it connects to via
-  `SEARXNG_VALKEY_URL` (`valkey-deployment.yaml`/`valkey-service.yaml`).
-  Tailnet-only exposure remains the network-layer access control.
+- **No instance-level rate limiter**: tried `SEARXNG_LIMITER=true` + an
+  in-namespace Valkey (#53) to stop in-cluster automation bursts from
+  tripping upstream engines' anti-bot, but its botdetection unconditionally
+  429s any non-browser User-Agent — including Hermes, the only automated
+  caller this instance has, regardless of request rate (`ip_limit`'s
+  format=json cap of 4 req/IP/hour is also hardcoded, not configurable). The
+  one client the limiter would ever need to throttle has to be exempted for
+  Hermes to work at all, leaving it protecting against traffic that doesn't
+  exist here. Removed; see `deployment.yaml`'s header comment. Tailnet-only
+  exposure remains the actual access control; bursts are mitigated by engine
+  breadth (below) and by pacing on the caller side instead.
 - **Exposure** (`service.yaml`): tailnet-only via the Tailscale Kubernetes
   operator — `type: LoadBalancer` + `loadBalancerClass: tailscale` +
   `tailscale.com/hostname: searxng`, exactly like
