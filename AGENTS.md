@@ -17,7 +17,7 @@ Everything else is discovered automatically, no manual `kubectl apply` needed:
 - `infra/` — cluster infrastructure components (currently `traefik`).
 - `apps/` — workloads deployed to the cluster (currently empty; `apps/hermes-agent` is planned — see `CONTEXT.md`).
 
-ApplicationSet sync policy is `applicationsSync: create-only` with `preserveResourcesOnDeletion: true` — ArgoCD creates new Applications for new directories but won't delete/prune an Application (or its resources) just because the directory disappeared; deletions must be handled by hand. Individual Applications have `syncPolicy.automated.selfHeal: true`.
+ApplicationSet sync policy is `applicationsSync: create-update` with `preserveResourcesOnDeletion: true` — ArgoCD creates new Applications for new directories and propagates template-spec changes onto existing ones, but won't delete/prune an Application (or its resources) just because the directory disappeared; deletions must be handled by hand. The generated Applications have no `syncPolicy.automated` (manual sync) — only `argocd` and `argocd-apps`, bootstrapped from `argocd-management/`, are auto-synced with `selfHeal`.
 
 ## Helm chart pattern ("wrapper charts")
 

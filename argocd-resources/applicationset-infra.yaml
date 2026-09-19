@@ -26,6 +26,31 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          # Pairs with the ignoreDifferences below: on sync, don't overwrite
+          # the fields we deliberately ignore (otherwise a sync would mint a
+          # new webhook cert over the persisted one).
+          - RespectIgnoreDifferences=true
+      # The victoria-metrics-k8s-operator chart renders its admission-webhook
+      # TLS material (the validation Secret + the ValidatingWebhookConfiguration
+      # caBundle) with Helm's genCA/genSignedCert on every render. Its
+      # keepTLSSecret guard tries to reuse the live Secret via `lookup`, but
+      # ArgoCD renders charts offline, so lookup returns empty and a fresh cert
+      # is minted each time — the rendered output can never match the persisted
+      # live cert. These are runtime-generated fields, not config drift, so
+      # ignore them. Scoped by name/namespace, so this is a no-op for every
+      # other infra application.
+      ignoreDifferences:
+        - group: ""
+          kind: Secret
+          name: victoria-metrics-victoria-metrics-operator-validation
+          namespace: victoria-metrics
+          jsonPointers:
+            - /data
+        - group: admissionregistration.k8s.io
+          kind: ValidatingWebhookConfiguration
+          name: victoria-metrics-victoria-metrics-operator-admission
+          jqPathExpressions:
+            - .webhooks[].clientConfig.caBundle
   syncPolicy:
-    applicationsSync: create-only
+    applicationsSync: create-update
     preserveResourcesOnDeletion: true
