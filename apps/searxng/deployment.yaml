@@ -74,7 +74,7 @@ spec:
       # (local-path-provisioner's helper-pod uses the same image).
       initContainers:
         - name: render-settings
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command:
             - sh
